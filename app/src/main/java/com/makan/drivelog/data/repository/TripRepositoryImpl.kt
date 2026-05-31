@@ -78,6 +78,11 @@ class TripRepositoryImpl @Inject constructor(
 
     override suspend fun updateTripNames(tripId: Long, name: String, startName: String?, endName: String?) =
         tripDao.updateTripNames(tripId, name, startName, endName)
+
+    override suspend fun deleteAllData() {
+        locationPointDao.deleteAll()
+        tripDao.deleteAll()
+    }
 }
 
 private fun TripEntity.toDomain() = Trip(

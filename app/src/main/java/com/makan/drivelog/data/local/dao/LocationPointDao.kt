@@ -19,4 +19,7 @@ interface LocationPointDao {
 
     @Query("SELECT * FROM location_points WHERE tripId = :tripId ORDER BY timestamp ASC")
     suspend fun getPointsForTrip(tripId: Long): List<LocationPointEntity>
+
+    @Query("DELETE FROM location_points")
+    suspend fun deleteAll()
 }

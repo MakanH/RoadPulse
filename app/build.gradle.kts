@@ -83,6 +83,9 @@ dependencies {
     // Networking
     implementation(libs.okhttp)
 
+    // DataStore
+    implementation(libs.datastore.preferences)
+
     // Extended icons for bottom nav
     implementation(libs.androidx.compose.material.icons.extended)
 

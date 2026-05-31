@@ -21,4 +21,5 @@ interface TripRepository {
     fun getTripsForMonth(startOfMonth: Long): Flow<List<Trip>>
     suspend fun getPointsForTrip(tripId: Long): List<LocationPoint>
     suspend fun updateTripNames(tripId: Long, name: String, startName: String?, endName: String?)
+    suspend fun deleteAllData()
 }
