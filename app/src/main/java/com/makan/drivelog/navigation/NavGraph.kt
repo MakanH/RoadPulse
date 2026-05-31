@@ -9,6 +9,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.makan.drivelog.presentation.friends.FriendsScreen
 import com.makan.drivelog.presentation.leaderboard.LeaderboardScreen
 import com.makan.drivelog.presentation.map.MapScreen
 import com.makan.drivelog.presentation.navigate.NavigateScreen
@@ -42,6 +43,7 @@ fun NavGraph(
                 navController.navigate(Screen.TripDetail.createRoute(tripId))
             })
         }
+        composable(Screen.Friends.route) { FriendsScreen() }
         composable(Screen.Profile.route)  { ProfileScreen() }
         composable(
             route = Screen.TripDetail.route,

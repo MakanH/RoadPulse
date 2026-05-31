@@ -2,6 +2,7 @@ package com.makan.drivelog.presentation.components
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Navigation
@@ -26,6 +27,7 @@ private val navItems = listOf(
     NavItem(Screen.Trips,    "Trips",    Icons.Filled.History),
     NavItem(Screen.Navigate, "Navigate", Icons.Filled.Navigation),
     NavItem(Screen.Board,    "Board",    Icons.Filled.EmojiEvents),
+    NavItem(Screen.Friends,  "Friends",  Icons.Filled.Group),
     NavItem(Screen.Profile,  "Profile",  Icons.Filled.Person)
 )
 
