@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">DriveLog</string>
+    <string name="default_web_client_id">41909685976-7lc4ribi9odh9me9jks28dbru6p6u0mo.apps.googleusercontent.com</string>
 </resources>
