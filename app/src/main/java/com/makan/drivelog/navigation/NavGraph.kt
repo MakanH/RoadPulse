@@ -26,8 +26,12 @@ fun NavGraph(
         startDestination = Screen.Map.route,
         modifier = Modifier.padding(paddingValues)
     ) {
-        composable(Screen.Map.route)      { MapScreen() }
-        composable(Screen.Trips.route)    {
+        composable(Screen.Map.route) {
+            MapScreen(onTripClick = { tripId ->
+                navController.navigate(Screen.TripDetail.createRoute(tripId))
+            })
+        }
+        composable(Screen.Trips.route) {
             TripsScreen(onTripClick = { tripId ->
                 navController.navigate(Screen.TripDetail.createRoute(tripId))
             })

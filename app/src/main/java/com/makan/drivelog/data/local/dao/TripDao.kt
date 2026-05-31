@@ -36,4 +36,7 @@ interface TripDao {
 
     @Query("UPDATE trips SET distance = :distance, avgSpeed = :avgSpeed, topSpeed = :topSpeed WHERE id = :tripId")
     suspend fun updateTripStats(tripId: Long, distance: Double, avgSpeed: Double, topSpeed: Double)
+
+    @Query("SELECT * FROM trips WHERE startTime >= :startOfMonth ORDER BY startTime DESC")
+    fun getTripsForMonth(startOfMonth: Long): Flow<List<TripEntity>>
 }

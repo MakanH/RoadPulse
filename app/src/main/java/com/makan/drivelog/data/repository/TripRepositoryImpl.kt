@@ -43,8 +43,7 @@ class TripRepositoryImpl @Inject constructor(
         tripDao.update(trip.copy(endTime = System.currentTimeMillis(), isActive = false))
     }
 
-    override suspend fun deleteTrip(trip: Trip) =
-        tripDao.delete(trip.toEntity())
+    override suspend fun deleteTrip(trip: Trip) = tripDao.delete(trip.toEntity())
 
     override suspend fun addLocationPoint(point: LocationPoint) {
         locationPointDao.insert(point.toEntity())
@@ -56,8 +55,7 @@ class TripRepositoryImpl @Inject constructor(
     override suspend fun getLatestLocationForTrip(tripId: Long): LocationPoint? =
         locationPointDao.getLatestForTrip(tripId)?.toDomain()
 
-    override suspend fun getActiveTrip(): Trip? =
-        tripDao.getActiveTrip()?.toDomain()
+    override suspend fun getActiveTrip(): Trip? = tripDao.getActiveTrip()?.toDomain()
 
     override fun getActiveTripFlow(): Flow<Trip?> =
         tripDao.getActiveTripFlow().map { it?.toDomain() }
@@ -71,6 +69,12 @@ class TripRepositoryImpl @Inject constructor(
 
     override suspend fun updateTripStats(tripId: Long, distance: Double, avgSpeed: Float, topSpeed: Float) =
         tripDao.updateTripStats(tripId, distance, avgSpeed.toDouble(), topSpeed.toDouble())
+
+    override fun getTripsForMonth(startOfMonth: Long): Flow<List<Trip>> =
+        tripDao.getTripsForMonth(startOfMonth).map { it.map(TripEntity::toDomain) }
+
+    override suspend fun getPointsForTrip(tripId: Long): List<LocationPoint> =
+        locationPointDao.getPointsForTrip(tripId).map(LocationPointEntity::toDomain)
 }
 
 private fun TripEntity.toDomain() = Trip(
