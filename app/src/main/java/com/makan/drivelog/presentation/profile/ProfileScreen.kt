@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.Notifications
@@ -28,13 +29,9 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -200,22 +197,20 @@ private fun SettingsCard(settings: ProfileViewModel.Settings, viewModel: Profile
                 onToggle    = viewModel::setAutoTracking
             )
             RowDivider()
-            UnitToggleRow(
-                icon        = Icons.Filled.Speed,
-                name        = "Speed unit",
-                description = "Display speed in",
-                options     = listOf("km/h", "mph"),
-                selected    = settings.speedUnit,
-                onSelect    = viewModel::setSpeedUnit
+            ChevronRow(
+                icon         = Icons.Filled.Speed,
+                name         = "Speed unit",
+                description  = "Display speed in",
+                currentValue = settings.speedUnit,
+                onClick      = viewModel::cycleSpeedUnit
             )
             RowDivider()
-            UnitToggleRow(
-                icon        = Icons.Filled.Straighten,
-                name        = "Distance unit",
-                description = "Display distance in",
-                options     = listOf("km", "miles"),
-                selected    = settings.distanceUnit,
-                onSelect    = viewModel::setDistanceUnit
+            ChevronRow(
+                icon         = Icons.Filled.Straighten,
+                name         = "Distance unit",
+                description  = "Display distance in",
+                currentValue = settings.distanceUnit,
+                onClick      = viewModel::cycleDistanceUnit
             )
             RowDivider()
             ToggleRow(
@@ -259,37 +254,33 @@ private fun ToggleRow(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun UnitToggleRow(
+private fun ChevronRow(
     icon: ImageVector,
     name: String,
     description: String,
-    options: List<String>,
-    selected: String,
-    onSelect: (String) -> Unit
+    currentValue: String,
+    onClick: () -> Unit
 ) {
-    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.width(12.dp))
-            Column {
-                Text(name, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
-                Text(description, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(name, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+            Text(description, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Spacer(Modifier.height(10.dp))
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.padding(start = 32.dp).fillMaxWidth()) {
-            options.forEachIndexed { i, option ->
-                SegmentedButton(
-                    selected = selected == option,
-                    onClick  = { onSelect(option) },
-                    shape    = SegmentedButtonDefaults.itemShape(index = i, count = options.size),
-                    label    = { Text(option, fontSize = 13.sp) }
-                )
-            }
-        }
+        Text(currentValue, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TealPrimary)
+        Spacer(Modifier.width(4.dp))
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null,
+            modifier = Modifier.size(18.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
