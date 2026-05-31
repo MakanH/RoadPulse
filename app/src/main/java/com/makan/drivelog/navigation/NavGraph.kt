@@ -44,7 +44,10 @@ fun NavGraph(
             arguments = listOf(navArgument(Screen.TripDetail.ARG_TRIP_ID) { type = NavType.LongType })
         ) { back ->
             val tripId = back.arguments?.getLong(Screen.TripDetail.ARG_TRIP_ID) ?: return@composable
-            TripDetailScreen(tripId = tripId)
+            TripDetailScreen(
+                tripId = tripId,
+                onBack = { navController.popBackStack() }
+            )
         }
     }
 }

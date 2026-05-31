@@ -2,6 +2,7 @@ package com.makan.drivelog.presentation.map
 
 import android.annotation.SuppressLint
 import android.graphics.Color as AndroidColor
+import android.graphics.PointF
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -23,6 +24,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.google.gson.JsonObject
 import com.makan.drivelog.data.service.TrackingState
 import org.maplibre.android.location.LocationComponentActivationOptions
 import org.maplibre.android.location.LocationComponentOptions
@@ -39,11 +41,11 @@ import org.maplibre.geojson.FeatureCollection
 import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
 
-private const val DARK_STYLE_URL = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
+internal const val DARK_STYLE_URL = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
 private const val SOURCE_PREFIX = "dl-src-"
 private const val LAYER_PREFIX  = "dl-lyr-"
 
-private class MapDrawingState {
+internal class MapDrawingState {
     val drawnTripIds = mutableSetOf<Long>()
 }
 
@@ -59,9 +61,9 @@ fun MapLibreMapView(
     val mapStyleState = remember { mutableStateOf<Style?>(null) }
     val drawingState  = remember { MapDrawingState() }
 
-    // rememberUpdatedState so the factory closure always reads the latest values
-    val latestTrips         = rememberUpdatedState(tripsWithPoints)
-    val latestActiveTripId  = rememberUpdatedState(trackingState.currentTrip?.id)
+    val latestTrips        = rememberUpdatedState(tripsWithPoints)
+    val latestActiveTripId = rememberUpdatedState(trackingState.currentTrip?.id)
+    val latestOnTripClick  = rememberUpdatedState(onTripClick)
 
     val mapView = remember {
         MapView(context).also { mv ->
@@ -74,18 +76,32 @@ fun MapLibreMapView(
                     setupLocationComponent(map, style, context)
                     redrawTrips(style, latestTrips.value, drawingState, latestActiveTripId.value)
                 }
+                map.addOnMapClickListener { latLng ->
+                    val screenPt = map.projection.toScreenLocation(latLng)
+                    val layerIds = drawingState.drawnTripIds.map { "$LAYER_PREFIX$it" }.toTypedArray()
+                    if (layerIds.isNotEmpty()) {
+                        val hits = map.queryRenderedFeatures(
+                            PointF(screenPt.x, screenPt.y), *layerIds
+                        )
+                        val tripId = hits.firstOrNull()
+                            ?.properties()?.get("tripId")?.asString?.toLongOrNull()
+                        if (tripId != null) {
+                            latestOnTripClick.value(tripId)
+                            return@addOnMapClickListener true
+                        }
+                    }
+                    false
+                }
             }
         }
     }
 
-    // Re-draw whenever style becomes ready OR data changes
     val style = mapStyleState.value
     LaunchedEffect(style, tripsWithPoints, trackingState.currentTrip?.id) {
         style ?: return@LaunchedEffect
         redrawTrips(style, tripsWithPoints, drawingState, trackingState.currentTrip?.id)
     }
 
-    // Forward lifecycle events to MapView
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
@@ -104,8 +120,6 @@ fun MapLibreMapView(
 
     Box(modifier = modifier) {
         AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize())
-
-        // "All trips — Month Year" overlay
         Text(
             text = "All trips — $monthLabel",
             modifier = Modifier.align(Alignment.TopStart).padding(12.dp),
@@ -117,7 +131,11 @@ fun MapLibreMapView(
 }
 
 @SuppressLint("MissingPermission")
-private fun setupLocationComponent(map: MapLibreMap, style: Style, context: android.content.Context) {
+private fun setupLocationComponent(
+    map: MapLibreMap,
+    style: Style,
+    context: android.content.Context
+) {
     try {
         val options = LocationComponentOptions.builder(context)
             .pulseEnabled(true)
@@ -133,49 +151,45 @@ private fun setupLocationComponent(map: MapLibreMap, style: Style, context: andr
         map.locationComponent.isLocationComponentEnabled = true
         map.locationComponent.cameraMode = CameraMode.NONE
         map.locationComponent.renderMode = RenderMode.NORMAL
-    } catch (e: Exception) {
-        // Permission may not be granted yet; location component set up later
-    }
+    } catch (e: Exception) { /* permission not yet granted */ }
 }
 
-private fun redrawTrips(
+internal fun redrawTrips(
     style: Style,
     trips: List<TripWithPoints>,
     state: MapDrawingState,
     activeTripId: Long?
 ) {
-    // Remove previously drawn layers/sources
     state.drawnTripIds.toList().forEach { id ->
         try { style.removeLayer("$LAYER_PREFIX$id") } catch (e: Exception) {}
         try { style.removeSource("$SOURCE_PREFIX$id") } catch (e: Exception) {}
     }
     state.drawnTripIds.clear()
 
-    // Draw inactive trips first (bottom), active trip last (top)
-    val sorted = trips.sortedWith(Comparator { a, b ->
+    val sorted = trips.sortedWith { a, b ->
         when {
             a.trip.id == activeTripId -> 1
             b.trip.id == activeTripId -> -1
             else -> 0
         }
-    })
+    }
 
     sorted.forEachIndexed { index, twp ->
         if (twp.points.size < 2) return@forEachIndexed
-        val trip = twp.trip
+        val trip    = twp.trip
         val isActive = trip.id == activeTripId
         val color   = when { isActive -> "#5DCAA5"; index % 2 == 0 -> "#378ADD"; else -> "#D85A30" }
         val width   = if (isActive) 4f else 2f
         val opacity = when { isActive -> 1f; index % 2 == 0 -> 0.5f; else -> 0.4f }
 
-        val pts = twp.points.map { Point.fromLngLat(it.longitude, it.latitude) }
-        val feature = Feature.fromGeometry(LineString.fromLngLats(pts))
-        val collection = FeatureCollection.fromFeatures(listOf(feature))
+        val props = JsonObject().apply { addProperty("tripId", trip.id.toString()) }
+        val pts   = twp.points.map { Point.fromLngLat(it.longitude, it.latitude) }
+        val feat  = Feature.fromGeometry(LineString.fromLngLats(pts), props)
 
         val srcId = "$SOURCE_PREFIX${trip.id}"
         val lyrId = "$LAYER_PREFIX${trip.id}"
         try {
-            style.addSource(GeoJsonSource(srcId, collection))
+            style.addSource(GeoJsonSource(srcId, FeatureCollection.fromFeatures(listOf(feat))))
             style.addLayer(
                 LineLayer(lyrId, srcId).withProperties(
                     PropertyFactory.lineColor(color),
@@ -186,6 +200,6 @@ private fun redrawTrips(
                 )
             )
             state.drawnTripIds.add(trip.id)
-        } catch (e: Exception) { /* layer/source might already exist from a race; ignore */ }
+        } catch (e: Exception) { /* race condition guard */ }
     }
 }
