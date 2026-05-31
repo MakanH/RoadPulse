@@ -54,6 +54,7 @@ import com.makan.drivelog.domain.model.RouteStep
 import com.makan.drivelog.presentation.map.LocationPermissionHandler
 import com.makan.drivelog.presentation.theme.CoralPrimary
 import com.makan.drivelog.presentation.theme.TealPrimary
+import com.makan.drivelog.presentation.util.LocalUnitPrefs
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -243,6 +244,7 @@ private fun RoutePreviewCard(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val units = LocalUnitPrefs.current
     Card(
         modifier  = modifier.fillMaxWidth().padding(16.dp),
         shape     = RoundedCornerShape(16.dp),
@@ -254,7 +256,7 @@ private fun RoutePreviewCard(
                 color = MaterialTheme.colorScheme.onSurface, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(4.dp))
             Text(
-                "${formatDistance(route.distanceMeters)} · ${formatDuration(route.durationSeconds)}",
+                "${units.formatDistanceM(route.distanceMeters)} · ${formatDuration(route.durationSeconds)}",
                 fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(Modifier.height(16.dp))
@@ -281,6 +283,7 @@ private fun InstructionBanner(
     distanceToTurn: Double,
     modifier: Modifier = Modifier
 ) {
+    val units = LocalUnitPrefs.current
     Card(
         modifier  = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
         shape     = RoundedCornerShape(12.dp),
@@ -301,7 +304,7 @@ private fun InstructionBanner(
             Column {
                 Text(step.instruction, fontSize = 16.sp, fontWeight = FontWeight.Medium,
                     color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(formatDistance(distanceToTurn), fontSize = 14.sp, color = TealPrimary)
+                Text(units.formatDistanceM(distanceToTurn), fontSize = 14.sp, color = TealPrimary)
             }
         }
     }
@@ -316,6 +319,7 @@ private fun NavigationBottomBar(
     onEnd: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val units     = LocalUnitPrefs.current
     val remaining = route.steps.drop(currentStepIndex)
     val remDist   = remaining.sumOf { it.distanceMeters }
     val remSecs   = remaining.sumOf { it.durationSeconds }
@@ -335,7 +339,7 @@ private fun NavigationBottomBar(
             Column(modifier = Modifier.weight(1f)) {
                 Text("ETA $eta", fontSize = 16.sp, fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface)
-                Text("${formatDistance(remDist)} · ${formatDuration(remSecs)}",
+                Text("${units.formatDistanceM(remDist)} · ${formatDuration(remSecs)}",
                     fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Button(

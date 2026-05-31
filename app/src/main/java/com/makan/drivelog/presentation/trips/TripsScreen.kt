@@ -40,6 +40,7 @@ import com.makan.drivelog.domain.model.Trip
 import com.makan.drivelog.presentation.components.TripRow
 import com.makan.drivelog.presentation.theme.TealPrimary
 import com.makan.drivelog.presentation.trips.TripsViewModel.TripFilter
+import com.makan.drivelog.presentation.util.LocalUnitPrefs
 
 @Composable
 fun TripsScreen(
@@ -114,6 +115,7 @@ private fun TripsContent(
 
 @Composable
 private fun SummaryCard(stats: TripsViewModel.SummaryStats, modifier: Modifier = Modifier) {
+    val units = LocalUnitPrefs.current
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -127,31 +129,15 @@ private fun SummaryCard(stats: TripsViewModel.SummaryStats, modifier: Modifier =
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                MetricCell(
-                    label = "Total trips",
-                    value = stats.totalTrips.toString(),
-                    modifier = Modifier.weight(1f)
-                )
-                MetricCell(
-                    label = "Total distance",
-                    value = "%.1f km".format(stats.totalDistanceKm),
-                    modifier = Modifier.weight(1f)
-                )
+                MetricCell("Total trips",    stats.totalTrips.toString(),                  Modifier.weight(1f))
+                MetricCell("Total distance", units.formatDistanceKm(stats.totalDistanceKm), Modifier.weight(1f))
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                MetricCell(
-                    label = "Total drive time",
-                    value = stats.totalDriveTime,
-                    modifier = Modifier.weight(1f)
-                )
-                MetricCell(
-                    label = "Top speed",
-                    value = "${stats.topSpeedKmh} km/h",
-                    modifier = Modifier.weight(1f)
-                )
+                MetricCell("Total drive time", stats.totalDriveTime,                      Modifier.weight(1f))
+                MetricCell("Top speed",        units.formatSpeedKmh(stats.topSpeedKmh),   Modifier.weight(1f))
             }
         }
     }

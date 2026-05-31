@@ -27,6 +27,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.makan.drivelog.domain.model.Trip
+import com.makan.drivelog.presentation.util.LocalUnitPrefs
+import com.makan.drivelog.presentation.util.UnitPrefs
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -40,6 +42,7 @@ private enum class TripAccent(val bgColor: Color, val iconColor: Color, val labe
 @Composable
 fun TripRow(trip: Trip, index: Int, onClick: () -> Unit) {
     val accent = TripAccent.entries[index % TripAccent.entries.size]
+    val units  = LocalUnitPrefs.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -59,12 +62,12 @@ fun TripRow(trip: Trip, index: Int, onClick: () -> Unit) {
             Text(text = trip.name, fontSize = 13.sp, fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface, maxLines = 1,
                 overflow = TextOverflow.Ellipsis)
-            Text(text = tripSubtitle(trip), fontSize = 11.sp,
+            Text(text = tripSubtitle(trip, units), fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1,
                 overflow = TextOverflow.Ellipsis)
         }
         Spacer(Modifier.width(8.dp))
-        Text(text = "${(trip.avgSpeed * 3.6).toInt()} km/h",
+        Text(text = units.formatSpeed(trip.avgSpeed),
             fontSize = 12.sp, fontWeight = FontWeight.Medium, color = accent.labelColor)
         Spacer(Modifier.width(4.dp))
         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null,
@@ -72,9 +75,9 @@ fun TripRow(trip: Trip, index: Int, onClick: () -> Unit) {
     }
 }
 
-fun tripSubtitle(trip: Trip): String {
+fun tripSubtitle(trip: Trip, units: UnitPrefs = UnitPrefs()): String {
     val date = SimpleDateFormat("EEE, HH:mm", Locale.getDefault()).format(Date(trip.startTime))
-    val distKm = "%.1f km".format(trip.distance / 1000.0)
+    val distKm = units.formatDistanceM(trip.distance)
     val endMs = trip.endTime ?: System.currentTimeMillis()
     val durationMs = endMs - trip.startTime
     val hours = durationMs / 3_600_000

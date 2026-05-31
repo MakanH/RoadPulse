@@ -45,6 +45,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.makan.drivelog.domain.model.LocationPoint
 import com.makan.drivelog.domain.model.Trip
 import com.makan.drivelog.domain.model.TripStats
+import com.makan.drivelog.presentation.util.LocalUnitPrefs
 import com.makan.drivelog.presentation.theme.CoralPrimary
 import com.makan.drivelog.presentation.theme.TealPrimary
 import com.makan.drivelog.presentation.theme.TextTertiary
@@ -176,8 +177,9 @@ private fun SpeedScrubberSection(
     onScrub: (Int) -> Unit,
     trip: Trip
 ) {
-    val currentSpeedKmh = if (points.isNotEmpty() && scrubIndex < points.size)
-        (points[scrubIndex].speed * 3.6).toInt() else 0
+    val units = LocalUnitPrefs.current
+    val currentSpeedDisplay = if (points.isNotEmpty() && scrubIndex < points.size)
+        units.formatSpeed(points[scrubIndex].speed) else "0 ${units.speedLabel()}"
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -194,7 +196,7 @@ private fun SpeedScrubberSection(
             }
 
             Spacer(Modifier.height(4.dp))
-            Text("$currentSpeedKmh km/h", fontSize = 26.sp, fontWeight = FontWeight.Bold,
+            Text(currentSpeedDisplay, fontSize = 26.sp, fontWeight = FontWeight.Bold,
                 color = TealPrimary)
 
             Slider(
@@ -222,10 +224,11 @@ private fun SpeedScrubberSection(
 
 @Composable
 private fun DetailStatCards(stats: TripStats) {
+    val units = LocalUnitPrefs.current
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        DetailStatCard("Distance", "%.1f".format(stats.distance / 1000.0), "km", Color(0xFF5DCAA5), Modifier.weight(1f))
-        DetailStatCard("Avg speed", "${(stats.avgSpeed * 3.6).toInt()}", "km/h", Color(0xFF378ADD), Modifier.weight(1f))
-        DetailStatCard("Top speed", "${(stats.topSpeed * 3.6).toInt()}", "km/h", Color(0xFFA32D2D), Modifier.weight(1f))
+        DetailStatCard("Distance",  units.distanceValueM(stats.distance), units.distanceLabel(), Color(0xFF5DCAA5), Modifier.weight(1f))
+        DetailStatCard("Avg speed", units.speedValueMs(stats.avgSpeed),   units.speedLabel(),    Color(0xFF378ADD), Modifier.weight(1f))
+        DetailStatCard("Top speed", units.speedValueMs(stats.topSpeed),   units.speedLabel(),    Color(0xFFA32D2D), Modifier.weight(1f))
     }
 }
 

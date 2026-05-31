@@ -44,31 +44,33 @@ import com.makan.drivelog.domain.model.Trip
 import com.makan.drivelog.presentation.components.TripRow
 import com.makan.drivelog.presentation.theme.CoralPrimary
 import com.makan.drivelog.presentation.theme.TealPrimary
+import com.makan.drivelog.presentation.util.LocalUnitPrefs
 
 // ── Stat cards ────────────────────────────────────────────────────────────────
 
 @Composable
 fun StatCardsRow(stats: TodayStats, modifier: Modifier = Modifier) {
+    val units = LocalUnitPrefs.current
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         StatCard(
             label = "Today's distance",
-            value = "%.1f".format(stats.distanceKm),
-            unit = "km",
+            value = units.distanceValueKm(stats.distanceKm),
+            unit  = units.distanceLabel(),
             modifier = Modifier.weight(1f)
         )
         StatCard(
             label = "Top speed",
-            value = "${stats.topSpeedKmh}",
-            unit = "km/h",
+            value = units.speedValueKmh(stats.topSpeedKmh),
+            unit  = units.speedLabel(),
             modifier = Modifier.weight(1f)
         )
         StatCard(
             label = "Avg speed",
-            value = "${stats.avgSpeedKmh}",
-            unit = "km/h",
+            value = units.speedValueKmh(stats.avgSpeedKmh),
+            unit  = units.speedLabel(),
             modifier = Modifier.weight(1f)
         )
     }
@@ -123,7 +125,7 @@ fun RecentTripsList(trips: List<Trip>, onTripClick: (Long) -> Unit, modifier: Mo
 
         if (trips.isEmpty()) {
             Text(
-                text = "No trips recorded yet. Start a drive!",
+                text = "No trips yet — start your first drive!",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(vertical = 16.dp)

@@ -60,6 +60,7 @@ import com.makan.drivelog.presentation.theme.BlueDark
 import com.makan.drivelog.presentation.theme.CoralDark
 import com.makan.drivelog.presentation.theme.TealDark
 import com.makan.drivelog.presentation.theme.TealPrimary
+import com.makan.drivelog.presentation.util.LocalUnitPrefs
 
 private val PurpleIcon   = Color(0xFF7F77DD)
 private val PurpleIconBg = Color(0xFFEEEDFE)
@@ -345,6 +346,7 @@ private fun RankedTripRow(ranked: LeaderboardViewModel.RankedTrip, onClick: () -
 
 @Composable
 private fun FunStatsCard(data: LeaderboardViewModel.LeaderboardData) {
+    val units = LocalUnitPrefs.current
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
         shape = RoundedCornerShape(12.dp),
@@ -355,13 +357,13 @@ private fun FunStatsCard(data: LeaderboardViewModel.LeaderboardData) {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = "You've driven %.0f km".format(data.totalKm),
+                text = "You've driven ${units.formatDistanceKm(data.totalKm)}",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = "Next milestone: ${data.nextMilestoneName} (%.0f km)".format(data.nextMilestoneTargetKm),
+                text = "Next milestone: ${data.nextMilestoneName} (${units.formatDistanceKm(data.nextMilestoneTargetKm)})",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

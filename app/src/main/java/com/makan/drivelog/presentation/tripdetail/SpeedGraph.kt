@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.makan.drivelog.domain.model.LocationPoint
+import com.makan.drivelog.presentation.util.LocalUnitPrefs
 
 private val TEAL  = Color(0xFF5DCAA5)
 private val CORAL = Color(0xFFD85A30)
@@ -34,7 +35,10 @@ fun SpeedGraph(
 ) {
     if (points.size < 2) return
 
-    val speeds = remember(points) { points.map { (it.speed * 3.6f).toFloat() } }
+    val units  = LocalUnitPrefs.current
+    val factor = units.speedFactor()
+    val label  = units.speedLabel()
+    val speeds = remember(points, factor) { points.map { (it.speed * factor).toFloat() } }
     val maxSpeed = remember(speeds) { (speeds.maxOrNull() ?: 1f) * 1.1f }
     val bgColor = MaterialTheme.colorScheme.surfaceVariant
 
@@ -55,7 +59,7 @@ fun SpeedGraph(
         drawSpeedFill(speeds, maxSpeed, hPad, topPad, gw, gh)
         drawSpeedLine(speeds, maxSpeed, hPad, topPad, gw, gh)
         drawScrubLine(scrubIndex, speeds.size, hPad, topPad, gw, gh)
-        drawLabels(speeds, maxSpeed)
+        drawLabels(speeds, maxSpeed, label)
     }
 }
 
@@ -108,13 +112,13 @@ private fun DrawScope.drawScrubLine(
     }
 }
 
-private fun DrawScope.drawLabels(speeds: List<Float>, maxSpeed: Float) {
+private fun DrawScope.drawLabels(speeds: List<Float>, maxSpeed: Float, speedUnit: String = "km/h") {
     val paint = android.graphics.Paint().apply {
         isAntiAlias = true
         color = MUTED.toArgb()
         textSize = 8.sp.toPx()
     }
-    val maxLabel = "${maxSpeed.toInt()} km/h"
+    val maxLabel = "${maxSpeed.toInt()} $speedUnit"
     drawContext.canvas.nativeCanvas.drawText(maxLabel, 4f, 16.dp.toPx(), paint)
     drawContext.canvas.nativeCanvas.drawText("0", 4f, size.height - 6.dp.toPx(), paint)
 }
