@@ -59,19 +59,8 @@ class ProfileViewModel @Inject constructor(
     fun setAutoTracking(v: Boolean)          { viewModelScope.launch { prefs.setAutoTracking(v) } }
     fun setBackgroundNotification(v: Boolean) { viewModelScope.launch { prefs.setBackgroundNotification(v) } }
 
-    fun cycleSpeedUnit() {
-        viewModelScope.launch {
-            val cur = uiState.value?.settings?.speedUnit ?: "km/h"
-            prefs.setSpeedUnit(if (cur == "km/h") "mph" else "km/h")
-        }
-    }
-
-    fun cycleDistanceUnit() {
-        viewModelScope.launch {
-            val cur = uiState.value?.settings?.distanceUnit ?: "km"
-            prefs.setDistanceUnit(if (cur == "km") "miles" else "km")
-        }
-    }
+    fun setSpeedUnit(unit: String)    { viewModelScope.launch { prefs.setSpeedUnit(unit) } }
+    fun setDistanceUnit(unit: String) { viewModelScope.launch { prefs.setDistanceUnit(unit) } }
 
     fun deleteAllData() { viewModelScope.launch { repository.deleteAllData() } }
 
