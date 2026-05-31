@@ -1,0 +1,78 @@
+package com.makan.drivelog.data.repository
+
+import com.makan.drivelog.data.local.dao.LocationPointDao
+import com.makan.drivelog.data.local.dao.TripDao
+import com.makan.drivelog.data.local.entity.LocationPointEntity
+import com.makan.drivelog.data.local.entity.TripEntity
+import com.makan.drivelog.domain.model.LocationPoint
+import com.makan.drivelog.domain.model.Trip
+import com.makan.drivelog.domain.repository.TripRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+
+class TripRepositoryImpl @Inject constructor(
+    private val tripDao: TripDao,
+    private val locationPointDao: LocationPointDao
+) : TripRepository {
+
+    override fun getAllTrips(): Flow<List<Trip>> =
+        tripDao.getAll().map { it.map(TripEntity::toDomain) }
+
+    override suspend fun getTripById(id: Long): Trip? =
+        tripDao.getById(id)?.toDomain()
+
+    override suspend fun startTrip(name: String): Long =
+        tripDao.insert(
+            TripEntity(
+                name = name,
+                startTime = System.currentTimeMillis(),
+                endTime = null,
+                distance = 0.0,
+                avgSpeed = 0.0,
+                topSpeed = 0.0,
+                isActive = true
+            )
+        )
+
+    override suspend fun endTrip(tripId: Long) {
+        val trip = tripDao.getById(tripId) ?: return
+        tripDao.update(trip.copy(endTime = System.currentTimeMillis(), isActive = false))
+    }
+
+    override suspend fun deleteTrip(trip: Trip) =
+        tripDao.delete(trip.toEntity())
+
+    override suspend fun addLocationPoint(point: LocationPoint) {
+        locationPointDao.insert(point.toEntity())
+    }
+
+    override fun getLocationPointsForTrip(tripId: Long): Flow<List<LocationPoint>> =
+        locationPointDao.getByTripId(tripId).map { it.map(LocationPointEntity::toDomain) }
+
+    override suspend fun getLatestLocationForTrip(tripId: Long): LocationPoint? =
+        locationPointDao.getLatestForTrip(tripId)?.toDomain()
+
+    override suspend fun getActiveTrip(): Trip? =
+        tripDao.getActiveTrip()?.toDomain()
+}
+
+private fun TripEntity.toDomain() = Trip(
+    id = id, name = name, startTime = startTime, endTime = endTime,
+    distance = distance, avgSpeed = avgSpeed, topSpeed = topSpeed, isActive = isActive
+)
+
+private fun Trip.toEntity() = TripEntity(
+    id = id, name = name, startTime = startTime, endTime = endTime,
+    distance = distance, avgSpeed = avgSpeed, topSpeed = topSpeed, isActive = isActive
+)
+
+private fun LocationPointEntity.toDomain() = LocationPoint(
+    id = id, tripId = tripId, latitude = latitude, longitude = longitude,
+    speed = speed, timestamp = timestamp, altitude = altitude
+)
+
+private fun LocationPoint.toEntity() = LocationPointEntity(
+    id = id, tripId = tripId, latitude = latitude, longitude = longitude,
+    speed = speed, timestamp = timestamp, altitude = altitude
+)

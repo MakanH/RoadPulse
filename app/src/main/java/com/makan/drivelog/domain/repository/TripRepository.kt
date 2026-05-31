@@ -1,0 +1,17 @@
+package com.makan.drivelog.domain.repository
+
+import com.makan.drivelog.domain.model.LocationPoint
+import com.makan.drivelog.domain.model.Trip
+import kotlinx.coroutines.flow.Flow
+
+interface TripRepository {
+    fun getAllTrips(): Flow<List<Trip>>
+    suspend fun getTripById(id: Long): Trip?
+    suspend fun startTrip(name: String): Long
+    suspend fun endTrip(tripId: Long)
+    suspend fun deleteTrip(trip: Trip)
+    suspend fun addLocationPoint(point: LocationPoint)
+    fun getLocationPointsForTrip(tripId: Long): Flow<List<LocationPoint>>
+    suspend fun getLatestLocationForTrip(tripId: Long): LocationPoint?
+    suspend fun getActiveTrip(): Trip?
+}
