@@ -75,16 +75,21 @@ class TripRepositoryImpl @Inject constructor(
 
     override suspend fun getPointsForTrip(tripId: Long): List<LocationPoint> =
         locationPointDao.getPointsForTrip(tripId).map(LocationPointEntity::toDomain)
+
+    override suspend fun updateTripNames(tripId: Long, name: String, startName: String?, endName: String?) =
+        tripDao.updateTripNames(tripId, name, startName, endName)
 }
 
 private fun TripEntity.toDomain() = Trip(
     id = id, name = name, startTime = startTime, endTime = endTime,
-    distance = distance, avgSpeed = avgSpeed, topSpeed = topSpeed, isActive = isActive
+    distance = distance, avgSpeed = avgSpeed, topSpeed = topSpeed, isActive = isActive,
+    startName = startName, endName = endName
 )
 
 private fun Trip.toEntity() = TripEntity(
     id = id, name = name, startTime = startTime, endTime = endTime,
-    distance = distance, avgSpeed = avgSpeed, topSpeed = topSpeed, isActive = isActive
+    distance = distance, avgSpeed = avgSpeed, topSpeed = topSpeed, isActive = isActive,
+    startName = startName, endName = endName
 )
 
 private fun LocationPointEntity.toDomain() = LocationPoint(

@@ -37,6 +37,7 @@ class LocationTrackingService : Service() {
     @Inject lateinit var repository: TripRepository
     @Inject lateinit var tripManager: TripManager
     @Inject lateinit var notificationHelper: NotificationHelper
+    @Inject lateinit var geocodingService: NominatimGeocodingService
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -189,6 +190,19 @@ class LocationTrackingService : Service() {
     private suspend fun finishTrip(tripId: Long) {
         repository.updateTripStats(tripId, totalDistance, tripManager.averageSpeed(), tripManager.peakSpeed())
         repository.endTrip(tripId)
+        geocodeAndNameTrip(tripId)
+    }
+
+    private suspend fun geocodeAndNameTrip(tripId: Long) {
+        val points = repository.getPointsForTrip(tripId)
+        val startPt = points.firstOrNull() ?: return
+        val endPt = points.lastOrNull() ?: return
+        val startName = geocodingService.getLocationName(startPt.latitude, startPt.longitude)
+        val endName = geocodingService.getLocationName(endPt.latitude, endPt.longitude)
+        if (startName == null && endName == null) return
+        val tripName = if (startName != null && endName != null) "$startName → $endName"
+                       else startName ?: endName ?: return
+        repository.updateTripNames(tripId, tripName, startName, endName)
     }
 
     private suspend fun emitState(speed: Float, tripId: Long) {

@@ -80,6 +80,9 @@ dependencies {
     // MapLibre
     implementation(libs.maplibre.android.sdk)
 
+    // Networking
+    implementation(libs.okhttp)
+
     // Extended icons for bottom nav
     implementation(libs.androidx.compose.material.icons.extended)
 

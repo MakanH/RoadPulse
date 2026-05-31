@@ -22,7 +22,9 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): DriveLogDatabase =
-        Room.databaseBuilder(context, DriveLogDatabase::class.java, "drivelog.db").build()
+        Room.databaseBuilder(context, DriveLogDatabase::class.java, "drivelog.db")
+            .fallbackToDestructiveMigration()
+            .build()
 
     @Provides
     fun provideTripDao(db: DriveLogDatabase): TripDao = db.tripDao()

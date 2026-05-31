@@ -20,4 +20,5 @@ interface TripRepository {
     suspend fun updateTripStats(tripId: Long, distance: Double, avgSpeed: Float, topSpeed: Float)
     fun getTripsForMonth(startOfMonth: Long): Flow<List<Trip>>
     suspend fun getPointsForTrip(tripId: Long): List<LocationPoint>
+    suspend fun updateTripNames(tripId: Long, name: String, startName: String?, endName: String?)
 }

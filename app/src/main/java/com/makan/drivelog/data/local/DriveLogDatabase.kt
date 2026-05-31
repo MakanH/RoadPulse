@@ -9,7 +9,7 @@ import com.makan.drivelog.data.local.entity.TripEntity
 
 @Database(
     entities = [TripEntity::class, LocationPointEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class DriveLogDatabase : RoomDatabase() {

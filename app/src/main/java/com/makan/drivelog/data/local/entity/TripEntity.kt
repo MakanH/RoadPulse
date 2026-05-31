@@ -13,5 +13,7 @@ data class TripEntity(
     val distance: Double,
     val avgSpeed: Double,
     val topSpeed: Double,
-    val isActive: Boolean
+    val isActive: Boolean,
+    val startName: String? = null,
+    val endName: String? = null
 )
