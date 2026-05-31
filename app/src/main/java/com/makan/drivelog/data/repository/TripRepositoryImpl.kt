@@ -8,7 +8,12 @@ import com.makan.drivelog.domain.model.LocationPoint
 import com.makan.drivelog.domain.model.Trip
 import com.makan.drivelog.domain.repository.TripRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 
 class TripRepositoryImpl @Inject constructor(
@@ -24,16 +29,14 @@ class TripRepositoryImpl @Inject constructor(
 
     override suspend fun startTrip(name: String): Long =
         tripDao.insert(
-            TripEntity(
-                name = name,
-                startTime = System.currentTimeMillis(),
-                endTime = null,
-                distance = 0.0,
-                avgSpeed = 0.0,
-                topSpeed = 0.0,
-                isActive = true
-            )
+            TripEntity(name = name, startTime = System.currentTimeMillis(),
+                endTime = null, distance = 0.0, avgSpeed = 0.0, topSpeed = 0.0, isActive = true)
         )
+
+    override suspend fun startNewTrip(): Long {
+        val name = "Trip — ${SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()).format(Date())}"
+        return startTrip(name)
+    }
 
     override suspend fun endTrip(tripId: Long) {
         val trip = tripDao.getById(tripId) ?: return
@@ -55,6 +58,19 @@ class TripRepositoryImpl @Inject constructor(
 
     override suspend fun getActiveTrip(): Trip? =
         tripDao.getActiveTrip()?.toDomain()
+
+    override fun getActiveTripFlow(): Flow<Trip?> =
+        tripDao.getActiveTripFlow().map { it?.toDomain() }
+
+    override fun getTripWithPoints(tripId: Long): Flow<Pair<Trip, List<LocationPoint>>> =
+        tripDao.getByIdAsFlow(tripId)
+            .filterNotNull()
+            .combine(locationPointDao.getByTripId(tripId)) { trip, points ->
+                Pair(trip.toDomain(), points.map(LocationPointEntity::toDomain))
+            }
+
+    override suspend fun updateTripStats(tripId: Long, distance: Double, avgSpeed: Float, topSpeed: Float) =
+        tripDao.updateTripStats(tripId, distance, avgSpeed.toDouble(), topSpeed.toDouble())
 }
 
 private fun TripEntity.toDomain() = Trip(

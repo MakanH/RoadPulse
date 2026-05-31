@@ -19,6 +19,9 @@ interface TripDao {
     @Query("SELECT * FROM trips WHERE id = :id")
     suspend fun getById(id: Long): TripEntity?
 
+    @Query("SELECT * FROM trips WHERE id = :id")
+    fun getByIdAsFlow(id: Long): Flow<TripEntity?>
+
     @Update
     suspend fun update(trip: TripEntity)
 
@@ -27,4 +30,10 @@ interface TripDao {
 
     @Query("SELECT * FROM trips WHERE isActive = 1 LIMIT 1")
     suspend fun getActiveTrip(): TripEntity?
+
+    @Query("SELECT * FROM trips WHERE isActive = 1 LIMIT 1")
+    fun getActiveTripFlow(): Flow<TripEntity?>
+
+    @Query("UPDATE trips SET distance = :distance, avgSpeed = :avgSpeed, topSpeed = :topSpeed WHERE id = :tripId")
+    suspend fun updateTripStats(tripId: Long, distance: Double, avgSpeed: Double, topSpeed: Double)
 }
