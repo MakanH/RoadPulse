@@ -19,10 +19,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material3.AlertDialog
@@ -46,18 +46,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
 import com.makan.drivelog.presentation.theme.CoralPrimary
 import com.makan.drivelog.presentation.theme.TealPrimary
 
 @Composable
 fun ProfileScreen(viewModel: ProfileViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var showDeleteDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog  by remember { mutableStateOf(false) }
+    var showSignOutDialog by remember { mutableStateOf(false) }
+    var showDeleteAccountDialog by remember { mutableStateOf(false) }
 
     if (showDeleteDialog) {
         AlertDialog(
@@ -71,6 +75,38 @@ fun ProfileScreen(viewModel: ProfileViewModel = hiltViewModel()) {
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    if (showSignOutDialog) {
+        AlertDialog(
+            onDismissRequest = { showSignOutDialog = false },
+            title = { Text("Sign out?") },
+            text  = { Text("You will be returned to the login screen.") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.signOut(); showSignOutDialog = false }) {
+                    Text("Sign out", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSignOutDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    if (showDeleteAccountDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteAccountDialog = false },
+            title = { Text("Delete account?") },
+            text  = { Text("This will permanently delete your account and all trip data. This cannot be undone.") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.deleteAccountAndAllData(); showDeleteAccountDialog = false }) {
+                    Text("Delete account", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteAccountDialog = false }) { Text("Cancel") }
             }
         )
     }
@@ -89,39 +125,63 @@ fun ProfileScreen(viewModel: ProfileViewModel = hiltViewModel()) {
         contentPadding = PaddingValues(bottom = 32.dp)
     ) {
         item { Spacer(Modifier.height(28.dp)) }
-        item { AvatarSection(state.stats.memberSince) }
+        item { AvatarSection(state.displayName, state.email, state.photoUrl, state.stats.memberSince) }
         item { Spacer(Modifier.height(24.dp)) }
         item { SectionHeader("Lifetime stats") }
         item { LifetimeStatsCard(state.stats) }
         item { Spacer(Modifier.height(20.dp)) }
         item { SectionHeader("Settings") }
-        item { SettingsCard(state.settings, viewModel) }
+        item { SettingsCard(state.settings, viewModel, onSignOut = { showSignOutDialog = true }) }
         item { Spacer(Modifier.height(20.dp)) }
-        item { DangerZone(onDelete = { showDeleteDialog = true }) }
+        item {
+            DangerZone(
+                onDeleteData = { showDeleteDialog = true },
+                onDeleteAccount = { showDeleteAccountDialog = true }
+            )
+        }
     }
 }
 
 // ── Avatar ────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun AvatarSection(memberSince: String) {
+private fun AvatarSection(displayName: String, email: String, photoUrl: String?, memberSince: String) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(
-            modifier = Modifier
-                .size(72.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Filled.Person, contentDescription = null,
-                modifier = Modifier.size(40.dp), tint = TealPrimary)
+        if (photoUrl != null) {
+            AsyncImage(
+                model = photoUrl,
+                contentDescription = "Avatar",
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = displayName.firstOrNull()?.uppercaseChar()?.toString() ?: "D",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TealPrimary
+                )
+            }
         }
         Spacer(Modifier.height(12.dp))
-        Text("Driver", fontSize = 16.sp, fontWeight = FontWeight.Medium,
+        Text(displayName, fontSize = 16.sp, fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface)
+        if (email.isNotBlank()) {
+            Spacer(Modifier.height(2.dp))
+            Text(email, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         Spacer(Modifier.height(4.dp))
         Text("Member since $memberSince", fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -182,7 +242,11 @@ private fun SectionHeader(title: String) {
 }
 
 @Composable
-private fun SettingsCard(settings: ProfileViewModel.Settings, viewModel: ProfileViewModel) {
+private fun SettingsCard(
+    settings: ProfileViewModel.Settings,
+    viewModel: ProfileViewModel,
+    onSignOut: () -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
         shape = RoundedCornerShape(12.dp),
@@ -220,7 +284,26 @@ private fun SettingsCard(settings: ProfileViewModel.Settings, viewModel: Profile
                 checked     = settings.backgroundNotification,
                 onToggle    = viewModel::setBackgroundNotification
             )
+            RowDivider()
+            SignOutRow(onClick = onSignOut)
         }
+    }
+}
+
+@Composable
+private fun SignOutRow(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null,
+            modifier = Modifier.size(20.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.width(12.dp))
+        Text("Sign out", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 
@@ -296,23 +379,38 @@ private fun RowDivider() {
 // ── Danger zone ───────────────────────────────────────────────────────────────
 
 @Composable
-private fun DangerZone(onDelete: () -> Unit) {
+private fun DangerZone(onDeleteData: () -> Unit, onDeleteAccount: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onDelete() }
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.Filled.DeleteForever, contentDescription = null,
-                tint = CoralPrimary, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(12.dp))
-            Text("Delete all data", fontSize = 14.sp, color = CoralPrimary)
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onDeleteData() }
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Filled.DeleteForever, contentDescription = null,
+                    tint = CoralPrimary, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(12.dp))
+                Text("Delete all data", fontSize = 14.sp, color = CoralPrimary)
+            }
+            RowDivider()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onDeleteAccount() }
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Filled.DeleteForever, contentDescription = null,
+                    tint = CoralPrimary, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(12.dp))
+                Text("Delete account", fontSize = 14.sp, color = CoralPrimary)
+            }
         }
     }
 }

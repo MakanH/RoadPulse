@@ -1,0 +1,85 @@
+package com.makan.drivelog.presentation.auth
+
+import android.app.Activity
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.makan.drivelog.data.service.AuthService
+import com.makan.drivelog.data.service.UserProfileService
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@HiltViewModel
+class AuthViewModel @Inject constructor(
+    private val authService: AuthService,
+    private val userProfileService: UserProfileService
+) : ViewModel() {
+
+    sealed class AuthUiState {
+        object Idle    : AuthUiState()
+        object Loading : AuthUiState()
+        object Success : AuthUiState()
+        data class Error(val message: String) : AuthUiState()
+    }
+
+    private val _state = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
+    val state: StateFlow<AuthUiState> = _state.asStateFlow()
+
+    fun signInWithEmail(email: String, password: String) {
+        viewModelScope.launch {
+            _state.value = AuthUiState.Loading
+            authService.signInWithEmail(email, password).fold(
+                onSuccess = { user ->
+                    runCatching { userProfileService.createOrUpdateProfile(user) }
+                    _state.value = AuthUiState.Success
+                },
+                onFailure = { _state.value = AuthUiState.Error(friendlyMessage(it)) }
+            )
+        }
+    }
+
+    fun signUpWithEmail(email: String, password: String, displayName: String) {
+        viewModelScope.launch {
+            _state.value = AuthUiState.Loading
+            authService.signUpWithEmail(email, password).fold(
+                onSuccess = { user ->
+                    runCatching { userProfileService.createOrUpdateProfile(user, displayName) }
+                    _state.value = AuthUiState.Success
+                },
+                onFailure = { _state.value = AuthUiState.Error(friendlyMessage(it)) }
+            )
+        }
+    }
+
+    fun signInWithGoogle(activity: Activity) {
+        viewModelScope.launch {
+            _state.value = AuthUiState.Loading
+            authService.signInWithGoogle(activity).fold(
+                onSuccess = { user ->
+                    runCatching { userProfileService.createOrUpdateProfile(user) }
+                    _state.value = AuthUiState.Success
+                },
+                onFailure = { _state.value = AuthUiState.Error(friendlyMessage(it)) }
+            )
+        }
+    }
+
+    fun clearError() { if (_state.value is AuthUiState.Error) _state.value = AuthUiState.Idle }
+
+    private fun friendlyMessage(t: Throwable): String = when {
+        t.message?.contains("email address is already in use", ignoreCase = true) == true ->
+            "That email is already registered. Try signing in."
+        t.message?.contains("no user record", ignoreCase = true) == true ->
+            "No account found with that email."
+        t.message?.contains("password is invalid", ignoreCase = true) == true ||
+        t.message?.contains("wrong-password", ignoreCase = true) == true ->
+            "Incorrect password."
+        t.message?.contains("badly formatted", ignoreCase = true) == true ->
+            "Please enter a valid email address."
+        t.message?.contains("canceled", ignoreCase = true) == true -> "Sign-in was cancelled."
+        else -> t.message ?: "Authentication failed. Please try again."
+    }
+}

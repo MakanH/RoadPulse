@@ -3,6 +3,7 @@ package com.makan.drivelog.presentation.profile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.makan.drivelog.data.local.PreferencesManager
+import com.makan.drivelog.data.service.AuthService
 import com.makan.drivelog.domain.model.Trip
 import com.makan.drivelog.domain.repository.TripRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,7 +20,8 @@ import javax.inject.Inject
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val repository: TripRepository,
-    private val prefs: PreferencesManager
+    private val prefs: PreferencesManager,
+    private val authService: AuthService
 ) : ViewModel() {
 
     data class LifetimeStats(
@@ -41,7 +43,10 @@ class ProfileViewModel @Inject constructor(
 
     data class ProfileUiState(
         val stats: LifetimeStats,
-        val settings: Settings
+        val settings: Settings,
+        val displayName: String = "Driver",
+        val email: String = "",
+        val photoUrl: String? = null
     )
 
     val uiState: StateFlow<ProfileUiState?> = combine(
@@ -51,9 +56,18 @@ class ProfileViewModel @Inject constructor(
             prefs.speedUnit,
             prefs.distanceUnit,
             prefs.backgroundNotification
-        ) { auto, speed, dist, bg -> Settings(auto, speed, dist, bg) }
-    ) { trips, settings ->
-        ProfileUiState(stats = computeStats(trips), settings = settings)
+        ) { auto, speed, dist, bg -> Settings(auto, speed, dist, bg) },
+        authService.currentUser
+    ) { trips, settings, user ->
+        ProfileUiState(
+            stats = computeStats(trips),
+            settings = settings,
+            displayName = user?.displayName?.takeIf { it.isNotBlank() }
+                ?: user?.email?.substringBefore('@')
+                ?: "Driver",
+            email = user?.email ?: "",
+            photoUrl = user?.photoUrl?.toString()
+        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     fun setAutoTracking(v: Boolean)          { viewModelScope.launch { prefs.setAutoTracking(v) } }
@@ -74,6 +88,15 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun deleteAllData() { viewModelScope.launch { repository.deleteAllData() } }
+
+    fun signOut() = authService.signOut()
+
+    fun deleteAccountAndAllData() {
+        viewModelScope.launch {
+            repository.deleteAllData()
+            authService.deleteAccount()
+        }
+    }
 
     private fun computeStats(trips: List<Trip>): LifetimeStats {
         val fmt = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
