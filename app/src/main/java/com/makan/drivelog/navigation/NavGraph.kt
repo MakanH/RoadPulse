@@ -37,7 +37,11 @@ fun NavGraph(
             })
         }
         composable(Screen.Navigate.route) { NavigateScreen() }
-        composable(Screen.Board.route)    { LeaderboardScreen() }
+        composable(Screen.Board.route) {
+            LeaderboardScreen(onTripClick = { tripId ->
+                navController.navigate(Screen.TripDetail.createRoute(tripId))
+            })
+        }
         composable(Screen.Profile.route)  { ProfileScreen() }
         composable(
             route = Screen.TripDetail.route,
