@@ -193,14 +193,14 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun openPrivacyPolicy() {
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://makan.github.io/RoadPulse/privacy-policy.html")).apply {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://makanh.github.io/RoadPulse/privacy-policy.html")).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         runCatching { context.startActivity(intent) }
     }
 
     fun openTermsOfService() {
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://makan.github.io/RoadPulse/terms-of-service.html")).apply {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://makanh.github.io/RoadPulse/terms-of-service.html")).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         runCatching { context.startActivity(intent) }

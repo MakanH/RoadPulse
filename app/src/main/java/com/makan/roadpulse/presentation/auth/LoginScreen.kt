@@ -35,8 +35,8 @@ import com.makan.roadpulse.presentation.theme.TealPrimary
 import androidx.compose.ui.text.LinkAnnotation
 import kotlinx.coroutines.launch
 
-internal const val TERMS_URL   = "https://makan.github.io/RoadPulse/terms-of-service.html"
-internal const val PRIVACY_URL = "https://makan.github.io/RoadPulse/privacy-policy.html"
+internal const val TERMS_URL   = "https://makanh.github.io/RoadPulse/terms-of-service.html"
+internal const val PRIVACY_URL = "https://makanh.github.io/RoadPulse/privacy-policy.html"
 
 @Composable
 fun LoginScreen(
