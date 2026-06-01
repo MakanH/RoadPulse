@@ -4,12 +4,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.makan.drivelog.data.local.PreferencesManager
 import com.makan.drivelog.data.service.AuthService
+import com.makan.drivelog.data.service.FriendService
+import com.makan.drivelog.data.service.GroupService
 import com.makan.drivelog.domain.model.Trip
 import com.makan.drivelog.domain.repository.TripRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -21,7 +25,9 @@ import javax.inject.Inject
 class ProfileViewModel @Inject constructor(
     private val repository: TripRepository,
     private val prefs: PreferencesManager,
-    private val authService: AuthService
+    private val authService: AuthService,
+    private val friendService: FriendService,
+    private val groupService: GroupService
 ) : ViewModel() {
 
     data class LifetimeStats(
@@ -46,8 +52,20 @@ class ProfileViewModel @Inject constructor(
         val settings: Settings,
         val displayName: String = "Driver",
         val email: String = "",
-        val photoUrl: String? = null
+        val photoUrl: String? = null,
+        val friendCount: Int = 0,
+        val groupCount: Int = 0
     )
+
+    private val friendCount = friendService.getFriends()
+        .catch { emit(emptyList()) }
+        .map { it.size }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    private val groupCount = groupService.getMyGroups()
+        .catch { emit(emptyList()) }
+        .map { it.size }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
     val uiState: StateFlow<ProfileUiState?> = combine(
         repository.getAllTrips(),
@@ -57,8 +75,9 @@ class ProfileViewModel @Inject constructor(
             prefs.distanceUnit,
             prefs.backgroundNotification
         ) { auto, speed, dist, bg -> Settings(auto, speed, dist, bg) },
-        authService.currentUser
-    ) { trips, settings, user ->
+        authService.currentUser,
+        combine(friendCount, groupCount) { f, g -> f to g }
+    ) { trips, settings, user, (fCount, gCount) ->
         ProfileUiState(
             stats = computeStats(trips),
             settings = settings,
@@ -66,7 +85,9 @@ class ProfileViewModel @Inject constructor(
                 ?: user?.email?.substringBefore('@')
                 ?: "Driver",
             email = user?.email ?: "",
-            photoUrl = user?.photoUrl?.toString()
+            photoUrl = user?.photoUrl?.toString(),
+            friendCount = fCount,
+            groupCount = gCount
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -79,6 +100,9 @@ class ProfileViewModel @Inject constructor(
             prefs.setSpeedUnit(if (cur == "km/h") "mph" else "km/h")
         }
     }
+
+    fun setSpeedUnit(unit: String)    { viewModelScope.launch { prefs.setSpeedUnit(unit) } }
+    fun setDistanceUnit(unit: String) { viewModelScope.launch { prefs.setDistanceUnit(unit) } }
 
     fun cycleDistanceUnit() {
         viewModelScope.launch {

@@ -30,7 +30,7 @@ class MainActivity : ComponentActivity() {
 
     private val mainRoutes = setOf(
         Screen.Map.route, Screen.Trips.route, Screen.Navigate.route,
-        Screen.Board.route, Screen.Friends.route, Screen.Groups.route, Screen.Profile.route
+        Screen.Board.route, Screen.Profile.route
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {

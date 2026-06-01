@@ -17,6 +17,7 @@ import com.makan.drivelog.presentation.leaderboard.LeaderboardScreen
 import com.makan.drivelog.presentation.map.MapScreen
 import com.makan.drivelog.presentation.navigate.NavigateScreen
 import com.makan.drivelog.presentation.profile.ProfileScreen
+import com.makan.drivelog.presentation.profile.SettingsScreen
 import com.makan.drivelog.presentation.tripdetail.TripDetailScreen
 import com.makan.drivelog.presentation.trips.TripsScreen
 
@@ -30,6 +31,7 @@ fun NavGraph(
         startDestination = Screen.Map.route,
         modifier = Modifier.padding(paddingValues)
     ) {
+        // ── 5 main tab destinations ────────────────────────────────────────────
         composable(Screen.Map.route) {
             MapScreen(
                 onTripClick = { tripId ->
@@ -52,21 +54,28 @@ fun NavGraph(
                     navController.navigate(Screen.TripDetail.createRoute(tripId))
                 },
                 onNavigateToFriends = {
-                    navController.navigate(Screen.Friends.route) {
-                        popUpTo(Screen.Map.route) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
+                    navController.navigate(Screen.Friends.route)
                 }
             )
         }
+        composable(Screen.Profile.route) {
+            ProfileScreen(
+                onNavigateToFriends  = { navController.navigate(Screen.Friends.route) },
+                onNavigateToGroups   = { navController.navigate(Screen.Groups.route) },
+                onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
+            )
+        }
+
+        // ── Detail / non-tab destinations (bottom nav hidden on these) ─────────
         composable(Screen.Friends.route) { FriendsScreen() }
         composable(Screen.Groups.route) {
             GroupsScreen(onGroupClick = { groupId ->
                 navController.navigate(Screen.GroupDetail.createRoute(groupId))
             })
         }
-        composable(Screen.Profile.route) { ProfileScreen() }
+        composable(Screen.Settings.route) {
+            SettingsScreen(onBack = { navController.popBackStack() })
+        }
         composable(
             route = Screen.GroupDetail.route,
             arguments = listOf(navArgument(Screen.GroupDetail.ARG_GROUP_ID) { type = NavType.StringType })

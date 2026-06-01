@@ -23,4 +23,5 @@ sealed class Screen(val route: String) {
         const val ARG_SESSION_ID = "sessionId"
         fun createRoute(groupId: String, sessionId: String) = "group_map/$groupId/$sessionId"
     }
+    object Settings : Screen("settings")
 }

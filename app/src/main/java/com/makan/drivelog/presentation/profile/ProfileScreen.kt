@@ -19,32 +19,22 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.GpsFixed
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.Straighten
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -53,63 +43,16 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
-import com.makan.drivelog.presentation.theme.CoralPrimary
 import com.makan.drivelog.presentation.theme.TealPrimary
 
 @Composable
-fun ProfileScreen(viewModel: ProfileViewModel = hiltViewModel()) {
+fun ProfileScreen(
+    onNavigateToFriends: () -> Unit = {},
+    onNavigateToGroups: () -> Unit = {},
+    onNavigateToSettings: () -> Unit = {},
+    viewModel: ProfileViewModel = hiltViewModel()
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var showDeleteDialog  by remember { mutableStateOf(false) }
-    var showSignOutDialog by remember { mutableStateOf(false) }
-    var showDeleteAccountDialog by remember { mutableStateOf(false) }
-
-    if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete all trips?") },
-            text  = { Text("This cannot be undone.") },
-            confirmButton = {
-                TextButton(onClick = { viewModel.deleteAllData(); showDeleteDialog = false }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") }
-            }
-        )
-    }
-
-    if (showSignOutDialog) {
-        AlertDialog(
-            onDismissRequest = { showSignOutDialog = false },
-            title = { Text("Sign out?") },
-            text  = { Text("You will be returned to the login screen.") },
-            confirmButton = {
-                TextButton(onClick = { viewModel.signOut(); showSignOutDialog = false }) {
-                    Text("Sign out", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showSignOutDialog = false }) { Text("Cancel") }
-            }
-        )
-    }
-
-    if (showDeleteAccountDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteAccountDialog = false },
-            title = { Text("Delete account?") },
-            text  = { Text("This will permanently delete your account and all trip data. This cannot be undone.") },
-            confirmButton = {
-                TextButton(onClick = { viewModel.deleteAccountAndAllData(); showDeleteAccountDialog = false }) {
-                    Text("Delete account", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteAccountDialog = false }) { Text("Cancel") }
-            }
-        )
-    }
 
     val state = uiState
     if (state == null) {
@@ -124,19 +67,30 @@ fun ProfileScreen(viewModel: ProfileViewModel = hiltViewModel()) {
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
         contentPadding = PaddingValues(bottom = 32.dp)
     ) {
-        item { Spacer(Modifier.height(28.dp)) }
-        item { AvatarSection(state.displayName, state.email, state.photoUrl, state.stats.memberSince) }
+        item { Spacer(Modifier.height(12.dp)) }
+        item {
+            Box(modifier = Modifier.fillMaxWidth()) {
+                AvatarSection(state.displayName, state.email, state.photoUrl, state.stats.memberSince)
+                IconButton(
+                    onClick = onNavigateToSettings,
+                    modifier = Modifier.align(Alignment.TopEnd).padding(end = 8.dp)
+                ) {
+                    Icon(Icons.Filled.Settings, contentDescription = "Settings",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
         item { Spacer(Modifier.height(24.dp)) }
         item { SectionHeader("Lifetime stats") }
         item { LifetimeStatsCard(state.stats) }
         item { Spacer(Modifier.height(20.dp)) }
-        item { SectionHeader("Settings") }
-        item { SettingsCard(state.settings, viewModel, onSignOut = { showSignOutDialog = true }) }
-        item { Spacer(Modifier.height(20.dp)) }
+        item { SectionHeader("Social") }
         item {
-            DangerZone(
-                onDeleteData = { showDeleteDialog = true },
-                onDeleteAccount = { showDeleteAccountDialog = true }
+            SocialCard(
+                friendCount = state.friendCount,
+                groupCount  = state.groupCount,
+                onFriends   = onNavigateToFriends,
+                onGroups    = onNavigateToGroups
             )
         }
     }
@@ -150,28 +104,24 @@ private fun AvatarSection(displayName: String, email: String, photoUrl: String?,
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Spacer(Modifier.height(16.dp))
         if (photoUrl != null) {
             AsyncImage(
                 model = photoUrl,
                 contentDescription = "Avatar",
-                modifier = Modifier
-                    .size(72.dp)
-                    .clip(CircleShape),
+                modifier = Modifier.size(72.dp).clip(CircleShape),
                 contentScale = ContentScale.Crop
             )
         } else {
             Box(
                 modifier = Modifier
-                    .size(72.dp)
-                    .clip(CircleShape)
+                    .size(72.dp).clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = displayName.firstOrNull()?.uppercaseChar()?.toString() ?: "D",
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TealPrimary
+                    fontSize = 28.sp, fontWeight = FontWeight.Bold, color = TealPrimary
                 )
             }
         }
@@ -202,16 +152,16 @@ private fun LifetimeStatsCard(stats: ProfileViewModel.LifetimeStats) {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatCell("Total trips",    stats.totalTrips.toString(),                        Modifier.weight(1f))
-                StatCell("Total distance", "%.1f km".format(stats.totalDistanceKm),            Modifier.weight(1f))
+                StatCell("Total trips",    stats.totalTrips.toString(),               Modifier.weight(1f))
+                StatCell("Total distance", "%.1f km".format(stats.totalDistanceKm),   Modifier.weight(1f))
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatCell("Drive time",     formatHours(stats.totalDrivingHours),               Modifier.weight(1f))
-                StatCell("Avg trips/week", "%.1f".format(stats.avgTripsPerWeek),               Modifier.weight(1f))
+                StatCell("Drive time",     formatHours(stats.totalDrivingHours),      Modifier.weight(1f))
+                StatCell("Avg trips/week", "%.1f".format(stats.avgTripsPerWeek),      Modifier.weight(1f))
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatCell("Avg trip dist.", "%.1f km".format(stats.avgTripDistanceKm),          Modifier.weight(1f))
-                StatCell("Top speed",     "${stats.topSpeedKmh} km/h",                        Modifier.weight(1f))
+                StatCell("Avg trip dist.", "%.1f km".format(stats.avgTripDistanceKm), Modifier.weight(1f))
+                StatCell("Top speed",     "${stats.topSpeedKmh} km/h",               Modifier.weight(1f))
             }
         }
     }
@@ -232,20 +182,14 @@ private fun formatHours(hours: Double): String {
     return if (h > 0) "${h}h ${m}m" else "${m}m"
 }
 
-// ── Settings ──────────────────────────────────────────────────────────────────
+// ── Social ────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun SectionHeader(title: String) {
-    Text(title, fontSize = 14.sp, fontWeight = FontWeight.Medium,
-        color = MaterialTheme.colorScheme.onSurface,
-        modifier = Modifier.padding(start = 16.dp, bottom = 8.dp))
-}
-
-@Composable
-private fun SettingsCard(
-    settings: ProfileViewModel.Settings,
-    viewModel: ProfileViewModel,
-    onSignOut: () -> Unit
+private fun SocialCard(
+    friendCount: Int,
+    groupCount: Int,
+    onFriends: () -> Unit,
+    onGroups: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
@@ -253,98 +197,29 @@ private fun SettingsCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column {
-            ToggleRow(
-                icon        = Icons.Filled.GpsFixed,
-                name        = "Auto-tracking",
-                description = "Automatically detect and log trips",
-                checked     = settings.autoTracking,
-                onToggle    = viewModel::setAutoTracking
+            SocialRow(
+                icon    = Icons.Filled.People,
+                label   = "Friends",
+                count   = "$friendCount friend${if (friendCount != 1) "s" else ""}",
+                onClick = onFriends
             )
-            RowDivider()
-            ChevronRow(
-                icon         = Icons.Filled.Speed,
-                name         = "Speed unit",
-                description  = "Display speed in",
-                currentValue = settings.speedUnit,
-                onClick      = viewModel::cycleSpeedUnit
+            HorizontalDivider(
+                modifier  = Modifier.padding(horizontal = 16.dp),
+                thickness = 0.5.dp,
+                color     = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
             )
-            RowDivider()
-            ChevronRow(
-                icon         = Icons.Filled.Straighten,
-                name         = "Distance unit",
-                description  = "Display distance in",
-                currentValue = settings.distanceUnit,
-                onClick      = viewModel::cycleDistanceUnit
+            SocialRow(
+                icon    = Icons.Filled.DirectionsCar,
+                label   = "Groups",
+                count   = "$groupCount group${if (groupCount != 1) "s" else ""}",
+                onClick = onGroups
             )
-            RowDivider()
-            ToggleRow(
-                icon        = Icons.Filled.Notifications,
-                name        = "Background notification",
-                description = "Show notification while tracking",
-                checked     = settings.backgroundNotification,
-                onToggle    = viewModel::setBackgroundNotification
-            )
-            RowDivider()
-            SignOutRow(onClick = onSignOut)
         }
     }
 }
 
 @Composable
-private fun SignOutRow(onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null,
-            modifier = Modifier.size(20.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.width(12.dp))
-        Text("Sign out", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
-    }
-}
-
-@Composable
-private fun ToggleRow(
-    icon: ImageVector,
-    name: String,
-    description: String,
-    checked: Boolean,
-    onToggle: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(name, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
-            Text(description, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Switch(
-            checked = checked,
-            onCheckedChange = onToggle,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor  = Color.White,
-                checkedTrackColor  = TealPrimary
-            )
-        )
-    }
-}
-
-@Composable
-private fun ChevronRow(
-    icon: ImageVector,
-    name: String,
-    description: String,
-    currentValue: String,
-    onClick: () -> Unit
-) {
+private fun SocialRow(icon: ImageVector, label: String, count: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -355,11 +230,9 @@ private fun ChevronRow(
         Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(name, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
-            Text(description, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Text(currentValue, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TealPrimary)
+        Text(label, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f))
+        Text(count, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.width(4.dp))
         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null,
             modifier = Modifier.size(18.dp),
@@ -367,50 +240,11 @@ private fun ChevronRow(
     }
 }
 
-@Composable
-private fun RowDivider() {
-    HorizontalDivider(
-        modifier  = Modifier.padding(horizontal = 16.dp),
-        thickness = 0.5.dp,
-        color     = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-    )
-}
-
-// ── Danger zone ───────────────────────────────────────────────────────────────
+// ── Shared ────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun DangerZone(onDeleteData: () -> Unit, onDeleteAccount: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-    ) {
-        Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onDeleteData() }
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Filled.DeleteForever, contentDescription = null,
-                    tint = CoralPrimary, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(12.dp))
-                Text("Delete all data", fontSize = 14.sp, color = CoralPrimary)
-            }
-            RowDivider()
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onDeleteAccount() }
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Filled.DeleteForever, contentDescription = null,
-                    tint = CoralPrimary, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(12.dp))
-                Text("Delete account", fontSize = 14.sp, color = CoralPrimary)
-            }
-        }
-    }
+internal fun SectionHeader(title: String) {
+    Text(title, fontSize = 14.sp, fontWeight = FontWeight.Medium,
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.padding(start = 16.dp, bottom = 8.dp))
 }

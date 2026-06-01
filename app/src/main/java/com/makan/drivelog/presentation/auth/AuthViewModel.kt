@@ -43,6 +43,15 @@ class AuthViewModel @Inject constructor(
 
     fun signUpWithEmail(email: String, password: String, displayName: String) {
         viewModelScope.launch {
+            val special = "!@#\$%^&*()_+-=[]{}|;':\",./<>?"
+            when {
+                password.length < 10 ->
+                    { _state.value = AuthUiState.Error("Password must be at least 10 characters."); return@launch }
+                !password.any { it.isUpperCase() } ->
+                    { _state.value = AuthUiState.Error("Password must contain an uppercase letter."); return@launch }
+                !password.any { it in special } ->
+                    { _state.value = AuthUiState.Error("Password must contain a special character."); return@launch }
+            }
             _state.value = AuthUiState.Loading
             authService.signUpWithEmail(email, password).fold(
                 onSuccess = { user ->

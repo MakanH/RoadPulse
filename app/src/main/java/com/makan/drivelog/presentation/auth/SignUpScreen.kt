@@ -38,6 +38,12 @@ fun SignUpScreen(
     var email       by remember { mutableStateOf("") }
     var password    by remember { mutableStateOf("") }
 
+    val specialChars = "!@#\$%^&*()_+-=[]{}|;':\",./<>?"
+    val hasMin10     = password.length >= 10
+    val hasUpper     = password.any { it.isUpperCase() }
+    val hasSpecial   = password.any { it in specialChars }
+    val passwordValid = hasMin10 && hasUpper && hasSpecial
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -77,6 +83,12 @@ fun SignUpScreen(
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             modifier = Modifier.fillMaxWidth(), colors = authFieldColors()
         )
+        Spacer(Modifier.height(6.dp))
+        Column(modifier = Modifier.fillMaxWidth()) {
+            PasswordRule("At least 10 characters", hasMin10)
+            PasswordRule("At least one uppercase letter", hasUpper)
+            PasswordRule("At least one special character (!@#\$…)", hasSpecial)
+        }
         Spacer(Modifier.height(8.dp))
 
         if (error != null) {
@@ -87,7 +99,7 @@ fun SignUpScreen(
 
         Button(
             onClick = { viewModel.signUpWithEmail(email, password, displayName) },
-            enabled = !isLoading && displayName.isNotBlank() && email.isNotBlank() && password.length >= 6,
+            enabled = !isLoading && displayName.isNotBlank() && email.isNotBlank() && passwordValid,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
@@ -125,5 +137,25 @@ fun SignUpScreen(
             Text("Continue with Google", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
         }
         Spacer(Modifier.height(32.dp))
+    }
+}
+
+@Composable
+private fun PasswordRule(text: String, met: Boolean) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(vertical = 1.dp)
+    ) {
+        Text(
+            text = if (met) "✓" else "·",
+            fontSize = 12.sp,
+            color = if (met) TealPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(16.dp)
+        )
+        Text(
+            text = text,
+            fontSize = 12.sp,
+            color = if (met) TealPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
