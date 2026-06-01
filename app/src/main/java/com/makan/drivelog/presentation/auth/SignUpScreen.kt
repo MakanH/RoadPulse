@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.makan.drivelog.presentation.theme.TealPrimary
+import kotlinx.coroutines.launch
 
 @Composable
 fun SignUpScreen(
@@ -35,6 +36,7 @@ fun SignUpScreen(
     val isLoading = authState is AuthViewModel.AuthUiState.Loading
     val error = (authState as? AuthViewModel.AuthUiState.Error)?.message
     val activity = LocalContext.current as Activity
+    val scope    = rememberCoroutineScope()
 
     var displayName by remember { mutableStateOf("") }
     var email       by remember { mutableStateOf("") }
@@ -142,7 +144,11 @@ fun SignUpScreen(
         Spacer(Modifier.height(16.dp))
 
         OutlinedButton(
-            onClick = { googleSignInLauncher.launch(viewModel.getGoogleSignInIntent(activity)) },
+            onClick = {
+                scope.launch {
+                    googleSignInLauncher.launch(viewModel.getGoogleSignInIntent(activity))
+                }
+            },
             enabled = tosAccepted && !isLoading,
             modifier = Modifier.fillMaxWidth().height(50.dp),
             shape = RoundedCornerShape(12.dp),

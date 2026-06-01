@@ -23,19 +23,21 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.makan.drivelog.presentation.theme.TealPrimary
 import androidx.compose.ui.text.LinkAnnotation
+import kotlinx.coroutines.launch
 
-private const val TERMS_URL   = "https://makan.github.io/drivelog/terms-of-service.html"
-private const val PRIVACY_URL = "https://makan.github.io/drivelog/privacy-policy.html"
+internal const val TERMS_URL   = "https://makan.github.io/drivelog/terms-of-service.html"
+internal const val PRIVACY_URL = "https://makan.github.io/drivelog/privacy-policy.html"
 
 @Composable
 fun LoginScreen(
@@ -46,18 +48,16 @@ fun LoginScreen(
     val isLoading = authState is AuthViewModel.AuthUiState.Loading
     val error = (authState as? AuthViewModel.AuthUiState.Error)?.message
     val activity = LocalContext.current as Activity
+    val scope    = rememberCoroutineScope()
 
-    var email       by remember { mutableStateOf("") }
-    var password    by remember { mutableStateOf("") }
-    var tosAccepted by remember { mutableStateOf(false) }
+    var email    by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
 
     val googleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        viewModel.handleGoogleSignInResult(result, tosAccepted = tosAccepted)
+        viewModel.handleGoogleSignInResult(result)
     }
-
-    val signInEnabled = !isLoading && email.isNotBlank() && password.isNotBlank() && tosAccepted
 
     Column(
         modifier = Modifier
@@ -96,9 +96,6 @@ fun LoginScreen(
             modifier = Modifier.fillMaxWidth(),
             colors = authFieldColors()
         )
-        Spacer(Modifier.height(12.dp))
-
-        TosCheckboxRow(checked = tosAccepted, onCheckedChange = { tosAccepted = it })
         Spacer(Modifier.height(8.dp))
 
         if (error != null) {
@@ -108,16 +105,11 @@ fun LoginScreen(
         }
 
         Button(
-            onClick = { viewModel.signInWithEmail(email, password, tosAccepted = tosAccepted) },
-            enabled = signInEnabled,
+            onClick = { viewModel.signInWithEmail(email, password) },
+            enabled = !isLoading && email.isNotBlank() && password.isNotBlank(),
             modifier = Modifier.fillMaxWidth().height(50.dp),
             shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = TealPrimary,
-                disabledContainerColor = TealPrimary.copy(alpha = 0.38f),
-                contentColor = Color.White,
-                disabledContentColor = Color.White.copy(alpha = 0.6f)
-            )
+            colors = ButtonDefaults.buttonColors(containerColor = TealPrimary)
         ) {
             if (isLoading) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
             else Text("Sign in", color = Color.White, fontWeight = FontWeight.Medium)
@@ -140,23 +132,50 @@ fun LoginScreen(
         Spacer(Modifier.height(16.dp))
 
         OutlinedButton(
-            onClick = { googleSignInLauncher.launch(viewModel.getGoogleSignInIntent(activity)) },
-            enabled = tosAccepted && !isLoading,
+            onClick = {
+                scope.launch {
+                    googleSignInLauncher.launch(viewModel.getGoogleSignInIntent(activity))
+                }
+            },
+            enabled = !isLoading,
             modifier = Modifier.fillMaxWidth().height(50.dp),
             shape = RoundedCornerShape(12.dp),
-            border = ButtonDefaults.outlinedButtonBorder(enabled = tosAccepted && !isLoading),
-            colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-            )
+            border = ButtonDefaults.outlinedButtonBorder(enabled = !isLoading)
         ) {
             GoogleIcon()
             Spacer(Modifier.width(8.dp))
             Text("Continue with Google", fontWeight = FontWeight.Medium)
         }
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(24.dp))
+        LegalFooterLinks()
+        Spacer(Modifier.height(16.dp))
     }
 }
+
+// ── Informational footer links (Login only) ───────────────────────────────────
+
+@Composable
+private fun LegalFooterLinks() {
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+    val linkStyle = TextLinkStyles(
+        style = SpanStyle(color = muted, textDecoration = TextDecoration.Underline, fontSize = 11.sp)
+    )
+    Text(
+        text = buildAnnotatedString {
+            pushLink(LinkAnnotation.Url(url = PRIVACY_URL, styles = linkStyle))
+            append("Privacy Policy")
+            pop()
+            withStyle(SpanStyle(color = muted, fontSize = 11.sp)) { append("  ·  ") }
+            pushLink(LinkAnnotation.Url(url = TERMS_URL, styles = linkStyle))
+            append("Terms of Service")
+            pop()
+        },
+        modifier = Modifier.fillMaxWidth(),
+        textAlign = TextAlign.Center
+    )
+}
+
+// ── Shared composables used by SignUpScreen ───────────────────────────────────
 
 @Composable
 internal fun TosCheckboxRow(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
@@ -193,10 +212,7 @@ internal fun TosCheckboxRow(checked: Boolean, onCheckedChange: (Boolean) -> Unit
             )
         )
         Spacer(Modifier.width(10.dp))
-        Text(
-            text = annotated,
-            modifier = Modifier.padding(top = 2.dp)
-        )
+        Text(text = annotated, modifier = Modifier.padding(top = 2.dp))
     }
 }
 

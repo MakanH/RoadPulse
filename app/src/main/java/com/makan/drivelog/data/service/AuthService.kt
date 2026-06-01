@@ -3,6 +3,7 @@ package com.makan.drivelog.data.service
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.FirebaseAuth
@@ -48,7 +49,12 @@ class AuthService @Inject constructor(
 
     suspend fun signUpWithEmail(email: String, password: String): Result<FirebaseUser> = runCatching {
         val user = auth.createUserWithEmailAndPassword(email, password).await().user!!
-        runCatching { user.sendEmailVerification().await() }
+        try {
+            user.sendEmailVerification().await()
+            Log.d("AuthService", "Verification email sent to ${user.email}")
+        } catch (e: Exception) {
+            Log.e("AuthService", "sendEmailVerification failed for ${user.email}: ${e.message}", e)
+        }
         user
     }
 
@@ -57,7 +63,9 @@ class AuthService @Inject constructor(
     }
 
     suspend fun sendVerificationEmail(): Result<Unit> = runCatching {
-        auth.currentUser?.sendEmailVerification()?.await() ?: Unit
+        val user = auth.currentUser ?: return@runCatching Unit
+        user.sendEmailVerification().await()
+        Log.d("AuthService", "Verification email re-sent to ${user.email}")
     }
 
     suspend fun refreshUser(): Result<Boolean> = runCatching {
@@ -67,12 +75,15 @@ class AuthService @Inject constructor(
         verified
     }
 
-    fun getGoogleSignInIntent(activity: Activity): Intent {
+    // Signs out the cached Google account first so the picker always shows all accounts.
+    suspend fun getGoogleSignInIntent(activity: Activity): Intent {
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestIdToken(context.getString(R.string.default_web_client_id))
             .requestEmail()
             .build()
-        return GoogleSignIn.getClient(activity, gso).signInIntent
+        val client = GoogleSignIn.getClient(activity, gso)
+        runCatching { client.signOut().await() }
+        return client.signInIntent
     }
 
     suspend fun handleGoogleSignInResult(data: Intent?): Result<FirebaseUser> = runCatching {

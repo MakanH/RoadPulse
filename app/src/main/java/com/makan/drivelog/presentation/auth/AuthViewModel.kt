@@ -70,7 +70,7 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun getGoogleSignInIntent(activity: Activity): Intent =
+    suspend fun getGoogleSignInIntent(activity: Activity): Intent =
         authService.getGoogleSignInIntent(activity)
 
     fun handleGoogleSignInResult(result: ActivityResult, tosAccepted: Boolean = false) {
@@ -102,9 +102,12 @@ class AuthViewModel @Inject constructor(
     }
 
     fun sendVerificationEmail() {
+        val email = authService.auth.currentUser?.email ?: ""
         viewModelScope.launch {
-            authService.sendVerificationEmail()
-            _snackbar.tryEmit("Verification email sent")
+            authService.sendVerificationEmail().fold(
+                onSuccess = { _snackbar.tryEmit("Verification email sent to $email") },
+                onFailure = { _snackbar.tryEmit("Couldn't send email — please try again.") }
+            )
             clearError()
         }
     }
