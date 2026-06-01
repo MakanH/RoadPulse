@@ -1,11 +1,15 @@
 package com.makan.drivelog.presentation.profile
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -20,6 +24,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Logout
@@ -43,10 +48,12 @@ import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
@@ -67,6 +74,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -98,6 +107,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val activity = context as Activity
 
     // ── Lifecycle-aware location permission check ─────────────────────────────
     var hasLocPerm by remember { mutableStateOf(hasLocationPermission(context)) }
@@ -125,20 +135,97 @@ fun SettingsScreen(
     val shareLoc           by viewModel.prefs.shareLiveLocation.collectAsStateWithLifecycle(true)
     val profileVis         by viewModel.prefs.profileVisibility.collectAsStateWithLifecycle("everyone")
 
+    val isDeleting   by viewModel.isDeleting.collectAsStateWithLifecycle()
+    val reauthNeeded by viewModel.reauthNeeded.collectAsStateWithLifecycle()
+
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(Unit) { viewModel.snackbar.collect { snackbarHostState.showSnackbar(it) } }
 
     var showSignOutDialog    by remember { mutableStateOf(false) }
     var showDeleteDataDialog by remember { mutableStateOf(false) }
     var showDeleteAcctDialog by remember { mutableStateOf(false) }
+    var showReauthDialog     by remember { mutableStateOf(false) }
+    var reauthPassword       by remember { mutableStateOf("") }
+
+    // Intercept back during deletion so the user can't navigate away mid-process
+    BackHandler(enabled = isDeleting) {}
+
+    // Register Google re-auth launcher unconditionally at composition time
+    val googleReauthLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        viewModel.reauthWithGoogleAndDelete(result.data)
+    }
+
+    // When Firebase requires re-authentication, route to the right flow
+    LaunchedEffect(reauthNeeded) {
+        if (reauthNeeded) {
+            viewModel.dismissReauth()
+            if (viewModel.isGoogleUser) {
+                val intent = viewModel.getGoogleReauthIntent(activity)
+                googleReauthLauncher.launch(intent)
+            } else {
+                reauthPassword = ""
+                showReauthDialog = true
+            }
+        }
+    }
+
+    // ── Dialogs ───────────────────────────────────────────────────────────────
 
     if (showSignOutDialog) ConfirmDialog("Sign out?", "You will be returned to the login screen.",
         "Sign out", { viewModel.signOut(); showSignOutDialog = false }, { showSignOutDialog = false })
+
     if (showDeleteDataDialog) ConfirmDialog("Delete all trips?", "This cannot be undone.",
         "Delete", { viewModel.deleteAllData(); showDeleteDataDialog = false }, { showDeleteDataDialog = false })
-    if (showDeleteAcctDialog) ConfirmDialog("Delete account?",
-        "Permanently deletes your account and all trip data. This cannot be undone.",
-        "Delete account", { viewModel.deleteAccountAndAllData(); showDeleteAcctDialog = false }, { showDeleteAcctDialog = false })
+
+    if (showDeleteAcctDialog) ConfirmDialog(
+        title = "Delete your account?",
+        body  = "This will permanently delete your account, all trip data, friend connections, and group memberships. This action cannot be undone.",
+        confirmLabel = "Delete everything",
+        onConfirm = { viewModel.deleteAccountAndAllData(); showDeleteAcctDialog = false },
+        onDismiss = { showDeleteAcctDialog = false }
+    )
+
+    if (showReauthDialog) {
+        AlertDialog(
+            onDismissRequest = { showReauthDialog = false; reauthPassword = "" },
+            title = { Text("Verify your identity") },
+            text  = {
+                Column {
+                    Text("For security, please enter your password to confirm account deletion.")
+                    Spacer(Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = reauthPassword,
+                        onValueChange = { reauthPassword = it },
+                        label = { Text("Password") },
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val pwd = reauthPassword
+                        showReauthDialog = false
+                        reauthPassword = ""
+                        viewModel.reauthWithEmailAndDelete(pwd)
+                    },
+                    enabled = reauthPassword.isNotEmpty()
+                ) { Text("Confirm", color = CoralPrimary) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showReauthDialog = false; reauthPassword = "" }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // ── Main layout ───────────────────────────────────────────────────────────
 
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
@@ -294,7 +381,25 @@ fun SettingsScreen(
                 }
             }
         }
+
         SnackbarHost(snackbarHostState, Modifier.align(Alignment.BottomCenter))
+
+        // Full-screen loading overlay during account deletion
+        if (isDeleting) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background.copy(alpha = 0.92f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(color = TealPrimary)
+                    Spacer(Modifier.height(16.dp))
+                    Text("Deleting account...", fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.onSurface)
+                }
+            }
+        }
     }
 }
 
@@ -452,7 +557,7 @@ private fun ConfirmDialog(title: String, body: String, confirmLabel: String, onC
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text  = { Text(body) },
-        confirmButton = { TextButton(onClick = onConfirm) { Text(confirmLabel, color = MaterialTheme.colorScheme.error) } },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(confirmLabel, color = CoralPrimary) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
 }

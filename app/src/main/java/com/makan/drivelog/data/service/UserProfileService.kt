@@ -2,6 +2,7 @@ package com.makan.drivelog.data.service
 
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.makan.drivelog.domain.model.UserProfile
@@ -78,5 +79,49 @@ class UserProfileService @Inject constructor(
             firestore.collection("users").document(uid)
                 .update("visibility", visibility).await()
         }
+    }
+
+    suspend fun deleteUserData(uid: String): Result<Unit> = runCatching {
+        // 1. Remove uid from all friends' friendIds arrays
+        val usersWithFriend = firestore.collection("users")
+            .whereArrayContains("friendIds", uid)
+            .get().await()
+        for (doc in usersWithFriend.documents) {
+            doc.reference.update("friendIds", FieldValue.arrayRemove(uid)).await()
+        }
+
+        // 2. Delete all friend requests involving this user
+        val sentRequests = firestore.collection("friendRequests")
+            .whereEqualTo("fromUid", uid).get().await()
+        val receivedRequests = firestore.collection("friendRequests")
+            .whereEqualTo("toUid", uid).get().await()
+        for (doc in sentRequests.documents + receivedRequests.documents) {
+            doc.reference.delete().await()
+        }
+
+        // 3. Handle group memberships — owner deletes group+subcollections, member just leaves
+        val groups = firestore.collection("groups")
+            .whereArrayContains("memberUids", uid).get().await()
+        for (groupDoc in groups.documents) {
+            if (groupDoc.getString("ownerUid") == uid) {
+                val sessions = groupDoc.reference.collection("sessions").get().await()
+                for (sessionDoc in sessions.documents) {
+                    val locations = sessionDoc.reference.collection("locations").get().await()
+                    for (locDoc in locations.documents) locDoc.reference.delete().await()
+                    sessionDoc.reference.delete().await()
+                }
+                groupDoc.reference.delete().await()
+            } else {
+                groupDoc.reference.update("memberUids", FieldValue.arrayRemove(uid)).await()
+            }
+        }
+
+        // 4. Delete trip summaries from Firestore
+        val trips = firestore.collection("users").document(uid)
+            .collection("trips").get().await()
+        for (tripDoc in trips.documents) tripDoc.reference.delete().await()
+
+        // 5. Delete user profile document
+        firestore.collection("users").document(uid).delete().await()
     }
 }
