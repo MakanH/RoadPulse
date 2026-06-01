@@ -1,6 +1,8 @@
 package com.makan.drivelog.presentation.auth
 
 import android.app.Activity
+import android.content.Intent
+import androidx.activity.result.ActivityResult
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.makan.drivelog.data.service.AuthService
@@ -63,10 +65,13 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun signInWithGoogle(activity: Activity) {
+    fun getGoogleSignInIntent(activity: Activity): Intent =
+        authService.getGoogleSignInIntent(activity)
+
+    fun handleGoogleSignInResult(result: ActivityResult) {
         viewModelScope.launch {
             _state.value = AuthUiState.Loading
-            authService.signInWithGoogle(activity).fold(
+            authService.handleGoogleSignInResult(result.data).fold(
                 onSuccess = { user ->
                     runCatching { userProfileService.createOrUpdateProfile(user) }
                     _state.value = AuthUiState.Success

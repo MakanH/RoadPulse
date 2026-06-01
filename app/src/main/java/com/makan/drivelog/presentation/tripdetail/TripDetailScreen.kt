@@ -45,6 +45,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.makan.drivelog.domain.model.LocationPoint
 import com.makan.drivelog.domain.model.Trip
 import com.makan.drivelog.domain.model.TripStats
+import com.makan.drivelog.presentation.map.getMapStyleUrl
+import com.makan.drivelog.presentation.profile.SettingsViewModel
 import com.makan.drivelog.presentation.util.LocalUnitPrefs
 import com.makan.drivelog.presentation.theme.CoralPrimary
 import com.makan.drivelog.presentation.theme.TealPrimary
@@ -58,10 +60,12 @@ import kotlin.math.roundToInt
 fun TripDetailScreen(
     tripId: Long,
     viewModel: TripDetailViewModel = hiltViewModel(),
+    settingsViewModel: SettingsViewModel = hiltViewModel(),
     onBack: () -> Unit = {}
 ) {
-    val uiState    by viewModel.uiState.collectAsStateWithLifecycle()
-    val scrubIndex by viewModel.scrubIndex.collectAsStateWithLifecycle()
+    val uiState      by viewModel.uiState.collectAsStateWithLifecycle()
+    val scrubIndex   by viewModel.scrubIndex.collectAsStateWithLifecycle()
+    val mapStylePref by settingsViewModel.prefs.mapStyle.collectAsStateWithLifecycle("dark")
 
     when (val state = uiState) {
         is TripDetailViewModel.UiState.Loading -> {
@@ -78,13 +82,14 @@ fun TripDetailScreen(
         }
         is TripDetailViewModel.UiState.Success -> {
             TripDetailContent(
-                trip       = state.trip,
-                points     = state.points,
-                stats      = state.stats,
-                segments   = state.segments,
-                scrubIndex = scrubIndex,
-                onScrub    = viewModel::onScrub,
-                onBack     = onBack
+                trip        = state.trip,
+                points      = state.points,
+                stats       = state.stats,
+                segments    = state.segments,
+                scrubIndex  = scrubIndex,
+                mapStyleUrl = getMapStyleUrl(mapStylePref),
+                onScrub     = viewModel::onScrub,
+                onBack      = onBack
             )
         }
     }
@@ -97,6 +102,7 @@ private fun TripDetailContent(
     stats: TripStats,
     segments: List<TripSegment>,
     scrubIndex: Int,
+    mapStyleUrl: String,
     onScrub: (Int) -> Unit,
     onBack: () -> Unit
 ) {
@@ -106,7 +112,8 @@ private fun TripDetailContent(
             TripDetailMapView(
                 modifier   = Modifier.fillMaxSize(),
                 points     = points,
-                scrubIndex = scrubIndex
+                scrubIndex = scrubIndex,
+                styleUrl   = mapStyleUrl
             )
             TopBar(trip = trip, onBack = onBack)
         }

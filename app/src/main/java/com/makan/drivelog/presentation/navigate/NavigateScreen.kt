@@ -56,6 +56,8 @@ import com.makan.drivelog.data.service.SearchResult
 import com.makan.drivelog.domain.model.Route
 import com.makan.drivelog.domain.model.RouteStep
 import com.makan.drivelog.presentation.map.LocationPermissionHandler
+import com.makan.drivelog.presentation.map.getMapStyleUrl
+import com.makan.drivelog.presentation.profile.SettingsViewModel
 import com.makan.drivelog.presentation.theme.CoralPrimary
 import com.makan.drivelog.presentation.theme.TealPrimary
 import com.makan.drivelog.presentation.util.LocalUnitPrefs
@@ -64,8 +66,12 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-fun NavigateScreen(viewModel: NavigateViewModel = hiltViewModel()) {
+fun NavigateScreen(
+    viewModel: NavigateViewModel = hiltViewModel(),
+    settingsViewModel: SettingsViewModel = hiltViewModel()
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val mapStylePref by settingsViewModel.prefs.mapStyle.collectAsStateWithLifecycle("dark")
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(state.errorMessage) {
@@ -79,9 +85,10 @@ fun NavigateScreen(viewModel: NavigateViewModel = hiltViewModel()) {
 
             // Always-visible map
             NavigateMapView(
-                modifier    = Modifier.fillMaxSize(),
-                route       = state.route,
-                isNavigating = state.navState == NavState.NAVIGATING
+                modifier     = Modifier.fillMaxSize(),
+                route        = state.route,
+                isNavigating = state.navState == NavState.NAVIGATING,
+                styleUrl     = getMapStyleUrl(mapStylePref)
             )
 
             // Top overlays

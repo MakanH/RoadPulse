@@ -48,7 +48,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.gson.JsonObject
 import com.makan.drivelog.domain.model.MemberLocation
-import com.makan.drivelog.presentation.map.DARK_STYLE_URL
+import com.makan.drivelog.presentation.map.getMapStyleUrl
+import com.makan.drivelog.presentation.profile.SettingsViewModel
 import com.makan.drivelog.presentation.theme.CoralPrimary
 import com.makan.drivelog.presentation.theme.TealPrimary
 import org.maplibre.android.camera.CameraUpdateFactory
@@ -82,10 +83,12 @@ private fun colorForIndex(index: Int) = MEMBER_COLORS[index % MEMBER_COLORS.size
 @Composable
 fun GroupMapScreen(
     onBack: () -> Unit,
-    viewModel: GroupMapViewModel = hiltViewModel()
+    viewModel: GroupMapViewModel = hiltViewModel(),
+    settingsViewModel: SettingsViewModel = hiltViewModel()
 ) {
     val memberLocations by viewModel.memberLocations.collectAsStateWithLifecycle()
     val group           by viewModel.group.collectAsStateWithLifecycle()
+    val mapStylePref    by settingsViewModel.prefs.mapStyle.collectAsStateWithLifecycle("dark")
     val context = LocalContext.current
 
     val mapStyleState = remember { mutableStateOf<Style?>(null) }
@@ -99,7 +102,7 @@ fun GroupMapScreen(
                 mapRef.value = map
                 map.uiSettings.isAttributionEnabled = false
                 map.uiSettings.isLogoEnabled = false
-                map.setStyle(DARK_STYLE_URL) { style ->
+                map.setStyle(getMapStyleUrl(mapStylePref)) { style ->
                     setupMemberLayers(style)
                     mapStyleState.value = style
                 }

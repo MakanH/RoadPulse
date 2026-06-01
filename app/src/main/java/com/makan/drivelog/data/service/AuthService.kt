@@ -2,10 +2,9 @@ package com.makan.drivelog.data.service
 
 import android.app.Activity
 import android.content.Context
-import androidx.credentials.CredentialManager
-import androidx.credentials.GetCredentialRequest
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
-import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import android.content.Intent
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
@@ -40,20 +39,18 @@ class AuthService @Inject constructor(
         auth.signInWithEmailAndPassword(email, password).await().user!!
     }
 
-    suspend fun signInWithGoogle(activity: Activity): Result<FirebaseUser> = runCatching {
-        val googleIdOption = GetGoogleIdOption.Builder()
-            .setFilterByAuthorizedAccounts(false)
-            .setServerClientId(context.getString(R.string.default_web_client_id))
-            .setAutoSelectEnabled(false)
+    fun getGoogleSignInIntent(activity: Activity): Intent {
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(context.getString(R.string.default_web_client_id))
+            .requestEmail()
             .build()
-        val request = GetCredentialRequest.Builder()
-            .addCredentialOption(googleIdOption)
-            .build()
-        val credentialManager = CredentialManager.create(activity)
-        val credResult = credentialManager.getCredential(context = activity, request = request)
-        val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credResult.credential.data)
-        val firebaseCredential = GoogleAuthProvider.getCredential(googleIdTokenCredential.idToken, null)
-        auth.signInWithCredential(firebaseCredential).await().user!!
+        return GoogleSignIn.getClient(activity, gso).signInIntent
+    }
+
+    suspend fun handleGoogleSignInResult(data: Intent?): Result<FirebaseUser> = runCatching {
+        val account = GoogleSignIn.getSignedInAccountFromIntent(data).await()
+        val credential = GoogleAuthProvider.getCredential(account.idToken!!, null)
+        auth.signInWithCredential(credential).await().user!!
     }
 
     fun signOut() = auth.signOut()

@@ -1,6 +1,8 @@
 package com.makan.drivelog.presentation.auth
 
 import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -43,6 +45,12 @@ fun SignUpScreen(
     val hasUpper     = password.any { it.isUpperCase() }
     val hasSpecial   = password.any { it in specialChars }
     val passwordValid = hasMin10 && hasUpper && hasSpecial
+
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        viewModel.handleGoogleSignInResult(result)
+    }
 
     Column(
         modifier = Modifier
@@ -125,7 +133,7 @@ fun SignUpScreen(
         Spacer(Modifier.height(16.dp))
 
         OutlinedButton(
-            onClick = { viewModel.signInWithGoogle(activity) },
+            onClick = { googleSignInLauncher.launch(viewModel.getGoogleSignInIntent(activity)) },
             enabled = !isLoading,
             modifier = Modifier
                 .fillMaxWidth()

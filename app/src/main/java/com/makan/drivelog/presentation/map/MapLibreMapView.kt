@@ -49,6 +49,9 @@ private const val LAYER_PREFIX  = "dl-lyr-"
 
 val LocalMapStyleUrl = compositionLocalOf { DARK_STYLE_URL }
 
+fun getMapStyleUrl(pref: String): String =
+    if (pref == "light") LIGHT_STYLE_URL else DARK_STYLE_URL
+
 internal class MapDrawingState {
     val drawnTripIds = mutableSetOf<Long>()
 }

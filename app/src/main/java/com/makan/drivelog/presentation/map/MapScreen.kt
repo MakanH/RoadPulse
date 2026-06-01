@@ -21,6 +21,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,16 +33,19 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.makan.drivelog.domain.model.Group
+import com.makan.drivelog.presentation.profile.SettingsViewModel
 import com.makan.drivelog.presentation.theme.TealDark
 import com.makan.drivelog.presentation.theme.TealPrimary
 
 @Composable
 fun MapScreen(
     viewModel: MapViewModel = hiltViewModel(),
+    settingsViewModel: SettingsViewModel = hiltViewModel(),
     onTripClick: (Long) -> Unit = {},
     onOpenGroupMap: ((groupId: String, sessionId: String) -> Unit)? = null
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val uiState      by viewModel.uiState.collectAsStateWithLifecycle()
+    val mapStylePref by settingsViewModel.prefs.mapStyle.collectAsStateWithLifecycle("dark")
     val context = LocalContext.current
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -65,13 +69,15 @@ fun MapScreen(
             LocationPermissionHandler {
                 val state = uiState
                 if (state is MapViewModel.UiState.Success) {
-                    MapLibreMapView(
-                        modifier = Modifier.fillMaxSize(),
-                        tripsWithPoints = state.monthlyTripsWithPoints,
-                        trackingState   = state.trackingState,
-                        monthLabel      = state.monthLabel,
-                        onTripClick     = onTripClick
-                    )
+                    CompositionLocalProvider(LocalMapStyleUrl provides getMapStyleUrl(mapStylePref)) {
+                        MapLibreMapView(
+                            modifier        = Modifier.fillMaxSize(),
+                            tripsWithPoints = state.monthlyTripsWithPoints,
+                            trackingState   = state.trackingState,
+                            monthLabel      = state.monthLabel,
+                            onTripClick     = onTripClick
+                        )
+                    }
                 } else {
                     Box(
                         modifier = Modifier

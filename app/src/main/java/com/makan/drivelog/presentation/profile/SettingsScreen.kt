@@ -35,14 +35,10 @@ import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
@@ -69,7 +65,6 @@ import com.makan.drivelog.presentation.theme.TealPrimary
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth as fmw
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
@@ -80,7 +75,7 @@ fun SettingsScreen(
     val mapStyle           by viewModel.prefs.mapStyle.collectAsStateWithLifecycle("dark")
     val autoTracking       by viewModel.prefs.autoTracking.collectAsStateWithLifecycle(true)
     val gpsAccuracy        by viewModel.prefs.gpsAccuracy.collectAsStateWithLifecycle("high")
-    val minTripDist        by viewModel.prefs.minTripDistance.collectAsStateWithLifecycle("500m")
+    val minTripDist        by viewModel.prefs.minTripDistance.collectAsStateWithLifecycle("100m")
     val speedUnit          by viewModel.prefs.speedUnit.collectAsStateWithLifecycle("km/h")
     val distanceUnit       by viewModel.prefs.distanceUnit.collectAsStateWithLifecycle("km")
     val bgNotif            by viewModel.prefs.backgroundNotification.collectAsStateWithLifecycle(true)
@@ -128,9 +123,9 @@ fun SettingsScreen(
             item { CategoryHeader("Appearance") }
             item {
                 SettingsCard {
-                    SegmentedRow3(Icons.Filled.AutoAwesome, "Theme",
-                        listOf("System", "Dark", "Light"), theme,
-                        onSelect = viewModel::setTheme)
+                    ChevronRow(Icons.Filled.AutoAwesome, "Theme", "App color scheme",
+                        theme.replaceFirstChar { it.uppercase() },
+                        onClick = viewModel::cycleTheme)
                     Div()
                     ChevronRow(Icons.Filled.Map, "Map style", "Current map theme",
                         if (mapStyle == "dark") "Dark" else "Light",
@@ -146,9 +141,9 @@ fun SettingsScreen(
                         "Automatically detect and record trips", autoTracking,
                         viewModel::setAutoTracking)
                     Div()
-                    SegmentedRow2(Icons.Filled.Tune, "GPS accuracy",
-                        listOf("High", "Balanced"), gpsAccuracy,
-                        onSelect = viewModel::setGpsAccuracy)
+                    ChevronRow(Icons.Filled.Tune, "GPS accuracy", "Location precision vs battery",
+                        if (gpsAccuracy == "high") "High" else "Balanced",
+                        onClick = viewModel::cycleGpsAccuracy)
                     Div()
                     ChevronRow(Icons.Filled.Route, "Min trip distance",
                         "Discard trips shorter than", minTripDist,
@@ -194,9 +189,9 @@ fun SettingsScreen(
                         "Allow friends to see your location in group drives", shareLoc,
                         viewModel::setShareLiveLocation)
                     Div()
-                    SegmentedRow2(Icons.Filled.Person, "Profile visibility",
-                        listOf("Everyone", "Friends only"), profileVis,
-                        onSelect = viewModel::setProfileVisibility)
+                    ChevronRow(Icons.Filled.Person, "Profile visibility", "Who can see your profile",
+                        if (profileVis == "everyone") "Everyone" else "Friends only",
+                        onClick = viewModel::cycleProfileVisibility)
                 }
             }
 
@@ -287,6 +282,7 @@ private fun ToggleRow(icon: ImageVector, name: String, desc: String, checked: Bo
             Text(name, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
             if (desc.isNotBlank()) Text(desc, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        Spacer(Modifier.width(16.dp))
         Switch(checked, onToggle, colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = TealPrimary))
     }
 }
@@ -304,6 +300,7 @@ private fun ToggleRowComingSoon(icon: ImageVector, name: String, desc: String, c
             }
             if (desc.isNotBlank()) Text(desc, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        Spacer(Modifier.width(16.dp))
         Switch(checked, onToggle, colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = TealPrimary))
     }
 }
@@ -344,40 +341,6 @@ private fun StaticRow(icon: ImageVector, name: String, value: String) {
         Spacer(Modifier.width(12.dp))
         Text(name, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
         Text(value, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SegmentedRow2(icon: ImageVector, name: String, options: List<String>, selected: String, onSelect: (String) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.width(12.dp))
-        Text(name, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-        SingleChoiceSegmentedButtonRow {
-            options.forEachIndexed { i, opt ->
-                SegmentedButton(opt == selected, { onSelect(opt) },
-                    SegmentedButtonDefaults.itemShape(i, options.size),
-                    label = { Text(opt, fontSize = 12.sp) })
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SegmentedRow3(icon: ImageVector, name: String, options: List<String>, selected: String, onSelect: (String) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.width(12.dp))
-        Text(name, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-        SingleChoiceSegmentedButtonRow {
-            options.forEachIndexed { i, opt ->
-                SegmentedButton(opt.lowercase() == selected, { onSelect(opt.lowercase()) },
-                    SegmentedButtonDefaults.itemShape(i, options.size),
-                    label = { Text(opt, fontSize = 11.sp) })
-            }
-        }
     }
 }
 

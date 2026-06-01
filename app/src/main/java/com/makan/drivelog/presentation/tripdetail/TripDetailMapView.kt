@@ -14,6 +14,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.makan.drivelog.domain.model.LocationPoint
 import com.makan.drivelog.presentation.map.DARK_STYLE_URL
+import com.makan.drivelog.presentation.map.getMapStyleUrl
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.geometry.LatLngBounds
@@ -34,7 +35,8 @@ import org.maplibre.geojson.Point
 fun TripDetailMapView(
     modifier: Modifier = Modifier,
     points: List<LocationPoint>,
-    scrubIndex: Int
+    scrubIndex: Int,
+    styleUrl: String = DARK_STYLE_URL
 ) {
     val context = LocalContext.current
     val mapRef   = remember { mutableStateOf<MapLibreMap?>(null) }
@@ -50,7 +52,7 @@ fun TripDetailMapView(
                 mapRef.value = map
                 map.uiSettings.isAttributionEnabled = false
                 map.uiSettings.isLogoEnabled = false
-                map.setStyle(DARK_STYLE_URL) { style ->
+                map.setStyle(styleUrl) { style ->
                     styleRef.value = style
                     drawTripRoute(style, map, latestPoints.value)
                     updateScrubDot(style, latestPoints.value, latestScrubIdx.value)

@@ -39,7 +39,8 @@ import org.maplibre.geojson.Point
 fun NavigateMapView(
     modifier: Modifier = Modifier,
     route: Route?,
-    isNavigating: Boolean
+    isNavigating: Boolean,
+    styleUrl: String = DARK_STYLE_URL
 ) {
     val context = LocalContext.current
     val mapRef   = remember { mutableStateOf<MapLibreMap?>(null) }
@@ -55,7 +56,7 @@ fun NavigateMapView(
                 mapRef.value = map
                 map.uiSettings.isAttributionEnabled = false
                 map.uiSettings.isLogoEnabled = false
-                map.setStyle(DARK_STYLE_URL) { style ->
+                map.setStyle(styleUrl) { style ->
                     styleRef.value = style
                     setupLocationComponent(map, style, context)
                     latestRoute.value?.let {

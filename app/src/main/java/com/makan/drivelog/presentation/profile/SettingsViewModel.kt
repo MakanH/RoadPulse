@@ -42,12 +42,18 @@ class SettingsViewModel @Inject constructor(
 
     // ── Setters ───────────────────────────────────────────────────────────────
 
-    fun setTheme(v: String)                      { viewModelScope.launch { prefs.setTheme(v) } }
+    fun cycleTheme()                             { viewModelScope.launch {
+        val options = listOf("system", "dark", "light")
+        val cur = prefs.theme.first()
+        prefs.setTheme(options[(options.indexOf(cur) + 1) % options.size])
+    }}
     fun cycleMapStyle()                          { viewModelScope.launch {
         prefs.setMapStyle(if (prefs.mapStyle.first() == "dark") "light" else "dark")
     }}
     fun setAutoTracking(v: Boolean)              { viewModelScope.launch { prefs.setAutoTracking(v) } }
-    fun setGpsAccuracy(v: String)                { viewModelScope.launch { prefs.setGpsAccuracy(v) } }
+    fun cycleGpsAccuracy()                       { viewModelScope.launch {
+        prefs.setGpsAccuracy(if (prefs.gpsAccuracy.first() == "high") "balanced" else "high")
+    }}
     fun cycleMinTripDistance()                   { viewModelScope.launch {
         val options = listOf("100m", "500m", "1 km")
         val cur = prefs.minTripDistance.first()
@@ -59,9 +65,11 @@ class SettingsViewModel @Inject constructor(
     fun setTripSummaryNotification(v: Boolean)   { viewModelScope.launch { prefs.setTripSummaryNotification(v) } }
     fun setFriendActivityNotification(v: Boolean){ viewModelScope.launch { prefs.setFriendActivityNotification(v) } }
     fun setShareLiveLocation(v: Boolean)         { viewModelScope.launch { prefs.setShareLiveLocation(v) } }
-    fun setProfileVisibility(v: String)          { viewModelScope.launch {
-        prefs.setProfileVisibility(v)
-        auth.currentUser?.uid?.let { uid -> userProfileService.updateVisibility(uid, v) }
+    fun cycleProfileVisibility()                 { viewModelScope.launch {
+        val cur = prefs.profileVisibility.first()
+        val next = if (cur == "everyone") "friends only" else "everyone"
+        prefs.setProfileVisibility(next)
+        auth.currentUser?.uid?.let { uid -> userProfileService.updateVisibility(uid, next) }
     }}
 
     fun signOut() = authService.signOut()
