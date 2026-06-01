@@ -59,15 +59,32 @@ class AuthService @Inject constructor(
             val result = auth.createUserWithEmailAndPassword(email, password).await()
             val user = result.user ?: return Result.failure(Exception("User creation failed"))
 
-            // Set display name in Firebase Auth profile
             val profileUpdates = UserProfileChangeRequest.Builder()
                 .setDisplayName(displayName)
                 .build()
             user.updateProfile(profileUpdates).await()
 
-            // Send verification email — must be awaited so the Task completes before GC
-            user.sendEmailVerification().await()
-            Log.d(TAG, "Verification email sent to ${user.email}")
+            // Send verification email in an isolated try-catch so that any failure (network
+            // error, cancellation from ViewModel destruction during navigation switch) does NOT
+            // roll back the account creation. EmailVerificationScreen will resend on open.
+            try {
+                val currentUser = auth.currentUser
+                android.util.Log.d("AUTH_DEBUG", "Current user after signup: ${currentUser?.uid}")
+                android.util.Log.d("AUTH_DEBUG", "User email: ${currentUser?.email}")
+                android.util.Log.d("AUTH_DEBUG", "User is null: ${currentUser == null}")
+                if (currentUser != null) {
+                    android.util.Log.d("AUTH_DEBUG", "About to send verification email...")
+                    currentUser.sendEmailVerification().await()
+                    android.util.Log.d("AUTH_DEBUG", "Verification email sent successfully!")
+                } else {
+                    android.util.Log.e("AUTH_DEBUG", "Cannot send verification - user is null after signup")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("AUTH_DEBUG", "Failed to send verification email", e)
+                android.util.Log.e("AUTH_DEBUG", "Exception type: ${e.javaClass.simpleName}")
+                android.util.Log.e("AUTH_DEBUG", "Exception message: ${e.message}")
+                // Don't rethrow — signup succeeds; EmailVerificationScreen will resend
+            }
 
             Result.success(user)
         } catch (e: Exception) {

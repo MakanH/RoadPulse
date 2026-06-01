@@ -54,6 +54,14 @@ fun EmailVerificationScreen(
         viewModel.snackbar.collect { snackbarHostState.showSnackbar(it) }
     }
 
+    // Send verification email as soon as the screen opens. This is the guaranteed
+    // delivery path: the signup coroutine may be cancelled mid-flight (the NavHost
+    // that owns it is removed from composition the instant currentUser becomes non-null),
+    // so we can't rely on signUpWithEmail to have completed the send.
+    LaunchedEffect("send_on_open") {
+        viewModel.sendVerificationEmail()
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()

@@ -111,7 +111,7 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             authService.sendVerificationEmail().fold(
                 onSuccess = { _snackbar.tryEmit("Verification email sent to $email") },
-                onFailure = { _snackbar.tryEmit("Couldn't send email — please try again.") }
+                onFailure = { _snackbar.tryEmit("Failed to send email: ${it.message ?: "Unknown error"}") }
             )
             clearError()
         }
