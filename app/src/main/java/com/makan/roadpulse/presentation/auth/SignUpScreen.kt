@@ -9,9 +9,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material3.*
+import com.makan.roadpulse.presentation.components.RoadPulseLogo
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,8 +66,7 @@ fun SignUpScreen(
     ) {
         Spacer(Modifier.height(64.dp))
 
-        Icon(Icons.Filled.DirectionsCar, contentDescription = null,
-            modifier = Modifier.size(56.dp), tint = TealPrimary)
+        RoadPulseLogo(size = 80.dp)
         Spacer(Modifier.height(8.dp))
         Text("RoadPulse", fontSize = 24.sp, fontWeight = FontWeight.Medium, color = TealPrimary)
         Spacer(Modifier.height(40.dp))
