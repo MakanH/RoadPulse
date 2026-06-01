@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
@@ -17,6 +18,9 @@ import com.makan.drivelog.navigation.Screen
 import com.makan.drivelog.presentation.auth.LoginScreen
 import com.makan.drivelog.presentation.auth.SignUpScreen
 import com.makan.drivelog.presentation.components.BottomNavBar
+import com.makan.drivelog.presentation.map.DARK_STYLE_URL
+import com.makan.drivelog.presentation.map.LIGHT_STYLE_URL
+import com.makan.drivelog.presentation.map.LocalMapStyleUrl
 import com.makan.drivelog.presentation.theme.DriveLogTheme
 import com.makan.drivelog.presentation.util.LocalUnitPrefs
 import com.makan.drivelog.presentation.util.UnitPrefs
@@ -40,14 +44,26 @@ class MainActivity : ComponentActivity() {
             val speedUnit    by preferencesManager.speedUnit.collectAsStateWithLifecycle(initialValue = "km/h")
             val distanceUnit by preferencesManager.distanceUnit.collectAsStateWithLifecycle(initialValue = "km")
             val currentUser  by authService.currentUser.collectAsStateWithLifecycle(initialValue = authService.auth.currentUser)
+            val themePref    by preferencesManager.theme.collectAsStateWithLifecycle(initialValue = "dark")
+            val mapStylePref by preferencesManager.mapStyle.collectAsStateWithLifecycle(initialValue = "dark")
 
-            DriveLogTheme {
-                CompositionLocalProvider(LocalUnitPrefs provides UnitPrefs(speedUnit, distanceUnit)) {
-                    val authNavController  = rememberNavController()
-                    val mainNavController  = rememberNavController()
+            val systemDark = isSystemInDarkTheme()
+            val isDark = when (themePref) {
+                "light"  -> false
+                "system" -> systemDark
+                else     -> true  // "dark"
+            }
+            val mapStyleUrl = if (mapStylePref == "light") LIGHT_STYLE_URL else DARK_STYLE_URL
+
+            DriveLogTheme(darkTheme = isDark) {
+                CompositionLocalProvider(
+                    LocalUnitPrefs provides UnitPrefs(speedUnit, distanceUnit),
+                    LocalMapStyleUrl provides mapStyleUrl
+                ) {
+                    val authNavController = rememberNavController()
+                    val mainNavController = rememberNavController()
 
                     if (currentUser == null) {
-                        // Auth flow
                         NavHost(navController = authNavController, startDestination = Screen.Login.route) {
                             composable(Screen.Login.route) {
                                 LoginScreen(onNavigateToSignUp = {
@@ -61,7 +77,6 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     } else {
-                        // Main app
                         val backStackEntry by mainNavController.currentBackStackEntryAsState()
                         val currentRoute = backStackEntry?.destination?.route
                         Scaffold(

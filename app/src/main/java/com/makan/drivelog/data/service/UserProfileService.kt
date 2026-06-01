@@ -67,4 +67,11 @@ class UserProfileService @Inject constructor(
                 }
         }.getOrDefault(emptyList())
     }
+
+    suspend fun updateVisibility(uid: String, visibility: String) {
+        runCatching {
+            firestore.collection("users").document(uid)
+                .update("visibility", visibility).await()
+        }
+    }
 }

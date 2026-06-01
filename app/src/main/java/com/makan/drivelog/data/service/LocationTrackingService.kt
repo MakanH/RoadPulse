@@ -16,6 +16,7 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.makan.drivelog.data.local.PreferencesManager
 import com.makan.drivelog.domain.model.LocationPoint
 import com.makan.drivelog.domain.repository.TripRepository
 import dagger.hilt.android.AndroidEntryPoint
@@ -28,6 +29,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -42,6 +44,7 @@ class LocationTrackingService : Service() {
     @Inject lateinit var geocodingService: NominatimGeocodingService
     @Inject lateinit var groupService: GroupService
     @Inject lateinit var tripSyncService: TripSyncService
+    @Inject lateinit var prefs: PreferencesManager
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -50,6 +53,10 @@ class LocationTrackingService : Service() {
     private var cooldownJob: Job? = null
     private var totalDistance = 0.0
     private var lastLocation: Location? = null
+
+    // Cached preference values — updated via ongoing collection
+    @Volatile private var cachedShareLiveLocation = true
+    @Volatile private var cachedGpsAccuracy = "high"
 
     companion object {
         const val ACTION_START = "com.makan.drivelog.action.START_TRACKING"
@@ -92,9 +99,10 @@ class LocationTrackingService : Service() {
             serviceScope.launch {
                 locationMutex.withLock { handleLocation(location, location.speed) }
             }
+            // Group broadcast (respects share live location preference)
             val gid = broadcastGroupId
             val sid = broadcastSessionId
-            if (gid != null && sid != null) {
+            if (gid != null && sid != null && cachedShareLiveLocation) {
                 serviceScope.launch {
                     val pt = LocationPoint(
                         id = 0L, tripId = 0L,
@@ -114,6 +122,9 @@ class LocationTrackingService : Service() {
         super.onCreate()
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         notificationHelper.createNotificationChannel()
+        // Keep preference caches live
+        serviceScope.launch { prefs.shareLiveLocation.collect { cachedShareLiveLocation = it } }
+        serviceScope.launch { prefs.gpsAccuracy.collect { cachedGpsAccuracy = it } }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -134,7 +145,11 @@ class LocationTrackingService : Service() {
         } else {
             startForeground(NotificationHelper.NOTIFICATION_ID, notification)
         }
-        val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 3_000L)
+        val priority = when (cachedGpsAccuracy) {
+            "balanced" -> Priority.PRIORITY_BALANCED_POWER_ACCURACY
+            else       -> Priority.PRIORITY_HIGH_ACCURACY
+        }
+        val request = LocationRequest.Builder(priority, 3_000L)
             .setMinUpdateIntervalMillis(1_000L)
             .build()
         try {
@@ -176,7 +191,6 @@ class LocationTrackingService : Service() {
                     if (dist < 200.0) totalDistance += dist
                 }
                 lastLocation = location
-
                 when (tripManager.onSpeedUpdate(speed)) {
                     SpeedResult.StartCooldown  -> scheduleCooldown(tripId)
                     SpeedResult.CancelCooldown -> { cooldownJob?.cancel(); cooldownJob = null }
@@ -208,17 +222,14 @@ class LocationTrackingService : Service() {
     private suspend fun persistPoint(location: Location, tripId: Long) {
         repository.addLocationPoint(
             LocationPoint(
-                id = 0,
-                tripId = tripId,
-                latitude = location.latitude,
-                longitude = location.longitude,
-                speed = location.speed.toDouble(),
-                timestamp = System.currentTimeMillis(),
+                id = 0, tripId = tripId,
+                latitude = location.latitude, longitude = location.longitude,
+                speed = location.speed.toDouble(), timestamp = System.currentTimeMillis(),
                 altitude = location.altitude
             )
         )
         repository.updateTripStats(
-            tripId = tripId,
+            tripId   = tripId,
             distance = totalDistance,
             avgSpeed = tripManager.averageSpeed(),
             topSpeed = tripManager.peakSpeed()
@@ -228,16 +239,43 @@ class LocationTrackingService : Service() {
     private suspend fun finishTrip(tripId: Long) {
         repository.updateTripStats(tripId, totalDistance, tripManager.averageSpeed(), tripManager.peakSpeed())
         repository.endTrip(tripId)
+
+        // Min trip distance check — discard short trips
+        val minDist = parseMinTripDistance(prefs.minTripDistance.first())
+        if (totalDistance < minDist) {
+            repository.getTripById(tripId)?.let { repository.deleteTrip(it) }
+            return
+        }
+
         geocodeAndNameTrip(tripId)
-        repository.getTripById(tripId)?.let { tripSyncService.syncTripToFirestore(it) }
+        val trip = repository.getTripById(tripId) ?: return
+        tripSyncService.syncTripToFirestore(trip)
+
+        // Trip summary notification
+        if (prefs.tripSummaryNotification.first()) {
+            val durationMs = (trip.endTime ?: trip.startTime) - trip.startTime
+            val avgKmh = (trip.avgSpeed * 3.6).toInt()
+            notificationHelper.showTripSummary(
+                name        = trip.name,
+                distanceKm  = trip.distance / 1_000.0,
+                durationMs  = durationMs,
+                avgSpeedKmh = avgKmh
+            )
+        }
+    }
+
+    private fun parseMinTripDistance(pref: String): Double = when (pref) {
+        "100m" -> 100.0
+        "1 km" -> 1_000.0
+        else   -> 500.0
     }
 
     private suspend fun geocodeAndNameTrip(tripId: Long) {
         val points = repository.getPointsForTrip(tripId)
         val startPt = points.firstOrNull() ?: return
-        val endPt = points.lastOrNull() ?: return
+        val endPt   = points.lastOrNull()  ?: return
         val startName = geocodingService.getLocationName(startPt.latitude, startPt.longitude)
-        val endName = geocodingService.getLocationName(endPt.latitude, endPt.longitude)
+        val endName   = geocodingService.getLocationName(endPt.latitude, endPt.longitude)
         if (startName == null && endName == null) return
         val tripName = if (startName != null && endName != null) "$startName → $endName"
                        else startName ?: endName ?: return
@@ -246,8 +284,8 @@ class LocationTrackingService : Service() {
 
     private suspend fun emitState(speed: Float, tripId: Long) {
         _state.value = TrackingState(
-            isTracking = tripManager.phase != TripManager.Phase.IDLE,
-            currentTrip = repository.getTripById(tripId),
+            isTracking   = tripManager.phase != TripManager.Phase.IDLE,
+            currentTrip  = repository.getTripById(tripId),
             currentSpeed = speed,
             tripDistance = totalDistance
         )

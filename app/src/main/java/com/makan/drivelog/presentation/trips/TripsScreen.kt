@@ -171,8 +171,7 @@ private fun FilterRow(
                     listOf(
                         TripFilter.ALL_TIME   to "All time",
                         TripFilter.THIS_MONTH to "This month",
-                        TripFilter.THIS_WEEK  to "This week",
-                        TripFilter.TODAY      to "Today"
+                        TripFilter.THIS_WEEK  to "This week"
                     ).forEach { (chipFilter, label) ->
                         FilterChip(
                             selected = filter == chipFilter,

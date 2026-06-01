@@ -16,25 +16,41 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.GpsFixed
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Route
+import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Straighten
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,258 +66,328 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.makan.drivelog.presentation.theme.CoralPrimary
 import com.makan.drivelog.presentation.theme.TealPrimary
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth as fmw
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
-    viewModel: ProfileViewModel = hiltViewModel()
+    onNavigateToLicenses: () -> Unit = {},
+    viewModel: SettingsViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val settings = uiState?.settings
+    val theme              by viewModel.prefs.theme.collectAsStateWithLifecycle("dark")
+    val mapStyle           by viewModel.prefs.mapStyle.collectAsStateWithLifecycle("dark")
+    val autoTracking       by viewModel.prefs.autoTracking.collectAsStateWithLifecycle(true)
+    val gpsAccuracy        by viewModel.prefs.gpsAccuracy.collectAsStateWithLifecycle("high")
+    val minTripDist        by viewModel.prefs.minTripDistance.collectAsStateWithLifecycle("500m")
+    val speedUnit          by viewModel.prefs.speedUnit.collectAsStateWithLifecycle("km/h")
+    val distanceUnit       by viewModel.prefs.distanceUnit.collectAsStateWithLifecycle("km")
+    val bgNotif            by viewModel.prefs.backgroundNotification.collectAsStateWithLifecycle(true)
+    val tripSummaryNotif   by viewModel.prefs.tripSummaryNotification.collectAsStateWithLifecycle(true)
+    val friendActNotif     by viewModel.prefs.friendActivityNotification.collectAsStateWithLifecycle(true)
+    val shareLoc           by viewModel.prefs.shareLiveLocation.collectAsStateWithLifecycle(true)
+    val profileVis         by viewModel.prefs.profileVisibility.collectAsStateWithLifecycle("everyone")
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(Unit) { viewModel.snackbar.collect { snackbarHostState.showSnackbar(it) } }
 
     var showSignOutDialog    by remember { mutableStateOf(false) }
-    var showDeleteDialog     by remember { mutableStateOf(false) }
+    var showDeleteDataDialog by remember { mutableStateOf(false) }
     var showDeleteAcctDialog by remember { mutableStateOf(false) }
 
-    if (showSignOutDialog) {
-        AlertDialog(
-            onDismissRequest = { showSignOutDialog = false },
-            title = { Text("Sign out?") },
-            text  = { Text("You will be returned to the login screen.") },
-            confirmButton = {
-                TextButton(onClick = { viewModel.signOut(); showSignOutDialog = false }) {
-                    Text("Sign out", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showSignOutDialog = false }) { Text("Cancel") }
-            }
-        )
-    }
+    if (showSignOutDialog) ConfirmDialog("Sign out?", "You will be returned to the login screen.",
+        "Sign out", { viewModel.signOut(); showSignOutDialog = false }, { showSignOutDialog = false })
+    if (showDeleteDataDialog) ConfirmDialog("Delete all trips?", "This cannot be undone.",
+        "Delete", { viewModel.deleteAllData(); showDeleteDataDialog = false }, { showDeleteDataDialog = false })
+    if (showDeleteAcctDialog) ConfirmDialog("Delete account?",
+        "Permanently deletes your account and all trip data. This cannot be undone.",
+        "Delete account", { viewModel.deleteAccountAndAllData(); showDeleteAcctDialog = false }, { showDeleteAcctDialog = false })
 
-    if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete all trips?") },
-            text  = { Text("This cannot be undone.") },
-            confirmButton = {
-                TextButton(onClick = { viewModel.deleteAllData(); showDeleteDialog = false }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") }
-            }
-        )
-    }
-
-    if (showDeleteAcctDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteAcctDialog = false },
-            title = { Text("Delete account?") },
-            text  = { Text("This permanently deletes your account and all trip data. This cannot be undone.") },
-            confirmButton = {
-                TextButton(onClick = { viewModel.deleteAccountAndAllData(); showDeleteAcctDialog = false }) {
-                    Text("Delete account", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteAcctDialog = false }) { Text("Cancel") }
-            }
-        )
-    }
-
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
-        contentPadding = PaddingValues(bottom = 32.dp)
-    ) {
-        // Top bar
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back",
-                        tint = MaterialTheme.colorScheme.onSurface)
-                }
-                Text("Settings", fontSize = 18.sp, fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface)
-            }
-        }
-
-        if (settings == null) return@LazyColumn
-
-        // Settings card
-        item { Spacer(Modifier.height(8.dp)) }
-        item { SectionHeader("Preferences") }
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Column {
-                    ToggleRow(
-                        icon = Icons.Filled.GpsFixed,
-                        name = "Auto-tracking",
-                        description = "Automatically detect and log trips",
-                        checked = settings.autoTracking,
-                        onToggle = viewModel::setAutoTracking
-                    )
-                    RowDivider()
-                    ChevronRow(
-                        icon         = Icons.Filled.Speed,
-                        name         = "Speed unit",
-                        description  = "Display speed in",
-                        currentValue = settings.speedUnit,
-                        onClick      = viewModel::cycleSpeedUnit
-                    )
-                    RowDivider()
-                    ChevronRow(
-                        icon         = Icons.Filled.Straighten,
-                        name         = "Distance unit",
-                        description  = "Display distance in",
-                        currentValue = settings.distanceUnit,
-                        onClick      = viewModel::cycleDistanceUnit
-                    )
-                    RowDivider()
-                    ToggleRow(
-                        icon = Icons.Filled.Notifications,
-                        name = "Background notification",
-                        description = "Show notification while tracking",
-                        checked = settings.backgroundNotification,
-                        onToggle = viewModel::setBackgroundNotification
-                    )
-                    RowDivider()
-                    // Sign out row
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showSignOutDialog = true }
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null,
-                            modifier = Modifier.size(20.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.width(12.dp))
-                        Text("Sign out", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+    Box(Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+            contentPadding = PaddingValues(bottom = 32.dp)
+        ) {
+            // Top bar
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onSurface)
                     }
+                    Text("Settings", fontSize = 18.sp, fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface)
                 }
             }
-        }
 
-        // Danger zone
-        item { Spacer(Modifier.height(20.dp)) }
-        item { SectionHeader("Danger zone") }
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Column {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showDeleteDialog = true }
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Filled.DeleteForever, contentDescription = null,
-                            tint = CoralPrimary, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(12.dp))
-                        Text("Delete all data", fontSize = 14.sp, color = CoralPrimary)
-                    }
-                    RowDivider()
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showDeleteAcctDialog = true }
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Filled.DeleteForever, contentDescription = null,
-                            tint = CoralPrimary, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(12.dp))
-                        Text("Delete account", fontSize = 14.sp, color = CoralPrimary)
-                    }
+            // ── Appearance ─────────────────────────────────────────────────────
+            item { CategoryHeader("Appearance") }
+            item {
+                SettingsCard {
+                    SegmentedRow3(Icons.Filled.AutoAwesome, "Theme",
+                        listOf("System", "Dark", "Light"), theme,
+                        onSelect = viewModel::setTheme)
+                    Div()
+                    ChevronRow(Icons.Filled.Map, "Map style", "Current map theme",
+                        if (mapStyle == "dark") "Dark" else "Light",
+                        onClick = viewModel::cycleMapStyle)
+                }
+            }
+
+            // ── Tracking ───────────────────────────────────────────────────────
+            item { CategoryHeader("Tracking") }
+            item {
+                SettingsCard {
+                    ToggleRow(Icons.Filled.GpsFixed, "Auto-tracking",
+                        "Automatically detect and record trips", autoTracking,
+                        viewModel::setAutoTracking)
+                    Div()
+                    SegmentedRow2(Icons.Filled.Tune, "GPS accuracy",
+                        listOf("High", "Balanced"), gpsAccuracy,
+                        onSelect = viewModel::setGpsAccuracy)
+                    Div()
+                    ChevronRow(Icons.Filled.Route, "Min trip distance",
+                        "Discard trips shorter than", minTripDist,
+                        onClick = viewModel::cycleMinTripDistance)
+                }
+            }
+
+            // ── Units ──────────────────────────────────────────────────────────
+            item { CategoryHeader("Units") }
+            item {
+                SettingsCard {
+                    ChevronRow(Icons.Filled.Speed, "Speed unit", "Display speed in",
+                        speedUnit, onClick = { viewModel.setSpeedUnit(if (speedUnit == "km/h") "mph" else "km/h") })
+                    Div()
+                    ChevronRow(Icons.Filled.Straighten, "Distance unit", "Display distance in",
+                        distanceUnit, onClick = { viewModel.setDistanceUnit(if (distanceUnit == "km") "miles" else "km") })
+                }
+            }
+
+            // ── Notifications ──────────────────────────────────────────────────
+            item { CategoryHeader("Notifications") }
+            item {
+                SettingsCard {
+                    ToggleRow(Icons.Filled.Notifications, "Tracking notification",
+                        "Show persistent notification while tracking", bgNotif,
+                        viewModel::setBackgroundNotification)
+                    Div()
+                    ToggleRow(Icons.Filled.Notifications, "Trip summary",
+                        "Show notification with stats when a trip ends", tripSummaryNotif,
+                        viewModel::setTripSummaryNotification)
+                    Div()
+                    ToggleRowComingSoon(Icons.Filled.People, "Friend activity",
+                        "Notify when friends start a group drive", friendActNotif,
+                        viewModel::setFriendActivityNotification)
+                }
+            }
+
+            // ── Privacy ────────────────────────────────────────────────────────
+            item { CategoryHeader("Privacy") }
+            item {
+                SettingsCard {
+                    ToggleRow(Icons.Filled.LocationOn, "Share live location",
+                        "Allow friends to see your location in group drives", shareLoc,
+                        viewModel::setShareLiveLocation)
+                    Div()
+                    SegmentedRow2(Icons.Filled.Person, "Profile visibility",
+                        listOf("Everyone", "Friends only"), profileVis,
+                        onSelect = viewModel::setProfileVisibility)
+                }
+            }
+
+            // ── Data ───────────────────────────────────────────────────────────
+            item { CategoryHeader("Data") }
+            item {
+                SettingsCard {
+                    ActionRow(Icons.Filled.SaveAlt, "Export trips",
+                        "Save all trips as a CSV to Downloads",
+                        onClick = viewModel::exportTrips)
+                    Div()
+                    ActionRow(Icons.Filled.Delete, "Clear location cache",
+                        "Remove cached geocoding results",
+                        onClick = viewModel::clearGeocodingCache)
+                    Div()
+                    ActionRow(Icons.Filled.DeleteForever, "Delete all trips",
+                        "Wipe all locally recorded trip data",
+                        onClick = { showDeleteDataDialog = true },
+                        tint = CoralPrimary)
+                }
+            }
+
+            // ── Account ────────────────────────────────────────────────────────
+            item { CategoryHeader("Account") }
+            item {
+                SettingsCard {
+                    ActionRow(Icons.AutoMirrored.Filled.Logout, "Sign out", "",
+                        onClick = { showSignOutDialog = true })
+                    Div()
+                    ActionRow(Icons.Filled.DeleteForever, "Delete account",
+                        "Permanently delete your account and all data",
+                        onClick = { showDeleteAcctDialog = true },
+                        tint = CoralPrimary)
+                }
+            }
+
+            // ── About ──────────────────────────────────────────────────────────
+            item { CategoryHeader("About") }
+            item {
+                SettingsCard {
+                    StaticRow(Icons.Filled.Info, "Version", "1.0.0")
+                    Div()
+                    ActionRow(Icons.Filled.Info, "Open source licenses", "",
+                        onClick = onNavigateToLicenses)
+                    Div()
+                    ActionRow(Icons.Filled.Info, "Send feedback",
+                        "feedback@drivelog.app",
+                        onClick = viewModel::sendFeedback)
                 }
             }
         }
+        SnackbarHost(snackbarHostState, Modifier.align(Alignment.BottomCenter))
     }
 }
 
-// ── Row composables ────────────────────────────────────────────────────────────
+// ── Category layout helpers ───────────────────────────────────────────────────
 
 @Composable
-private fun ToggleRow(
-    icon: ImageVector,
-    name: String,
-    description: String,
-    checked: Boolean,
-    onToggle: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant)
+private fun CategoryHeader(title: String) {
+    Text(title, fontSize = 14.sp, fontWeight = FontWeight.Medium,
+        color = MaterialTheme.colorScheme.secondary,
+        modifier = Modifier.padding(start = 16.dp, top = 20.dp, bottom = 6.dp))
+}
+
+@Composable
+private fun SettingsCard(content: @Composable () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) { Column { content() } }
+}
+
+@Composable
+private fun Div() {
+    HorizontalDivider(Modifier.padding(horizontal = 16.dp), 0.5.dp,
+        MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+}
+
+// ── Row types ─────────────────────────────────────────────────────────────────
+
+@Composable
+private fun ToggleRow(icon: ImageVector, name: String, desc: String, checked: Boolean, onToggle: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
+        Column(Modifier.weight(1f)) {
             Text(name, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
-            Text(description, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (desc.isNotBlank()) Text(desc, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Switch(
-            checked = checked,
-            onCheckedChange = onToggle,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = TealPrimary
-            )
-        )
+        Switch(checked, onToggle, colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = TealPrimary))
     }
 }
 
 @Composable
-private fun ChevronRow(
-    icon: ImageVector,
-    name: String,
-    description: String,
-    currentValue: String,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant)
+private fun ToggleRowComingSoon(icon: ImageVector, name: String, desc: String, checked: Boolean, onToggle: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(name, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+                Spacer(Modifier.width(6.dp))
+                Text("(coming soon)", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (desc.isNotBlank()) Text(desc, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Switch(checked, onToggle, colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = TealPrimary))
+    }
+}
+
+@Composable
+private fun ChevronRow(icon: ImageVector, name: String, desc: String, currentValue: String, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().clickable { onClick() }.padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
             Text(name, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
-            Text(description, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (desc.isNotBlank()) Text(desc, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Text(currentValue, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TealPrimary)
-        Spacer(Modifier.width(4.dp))
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null,
-            modifier = Modifier.size(18.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
 @Composable
-private fun RowDivider() {
-    HorizontalDivider(
-        modifier  = Modifier.padding(horizontal = 16.dp),
-        thickness = 0.5.dp,
-        color     = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+private fun ActionRow(icon: ImageVector, name: String, desc: String, onClick: () -> Unit,
+                      tint: Color = MaterialTheme.colorScheme.onSurface) {
+    Row(Modifier.fillMaxWidth().clickable { onClick() }.padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(name, fontSize = 14.sp, color = tint)
+            if (desc.isNotBlank()) Text(desc, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun StaticRow(icon: ImageVector, name: String, value: String) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.width(12.dp))
+        Text(name, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+        Text(value, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SegmentedRow2(icon: ImageVector, name: String, options: List<String>, selected: String, onSelect: (String) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.width(12.dp))
+        Text(name, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+        SingleChoiceSegmentedButtonRow {
+            options.forEachIndexed { i, opt ->
+                SegmentedButton(opt == selected, { onSelect(opt) },
+                    SegmentedButtonDefaults.itemShape(i, options.size),
+                    label = { Text(opt, fontSize = 12.sp) })
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SegmentedRow3(icon: ImageVector, name: String, options: List<String>, selected: String, onSelect: (String) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.width(12.dp))
+        Text(name, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+        SingleChoiceSegmentedButtonRow {
+            options.forEachIndexed { i, opt ->
+                SegmentedButton(opt.lowercase() == selected, { onSelect(opt.lowercase()) },
+                    SegmentedButtonDefaults.itemShape(i, options.size),
+                    label = { Text(opt, fontSize = 11.sp) })
+            }
+        }
+    }
+}
+
+@Composable
+private fun ConfirmDialog(title: String, body: String, confirmLabel: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text  = { Text(body) },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(confirmLabel, color = MaterialTheme.colorScheme.error) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
 }

@@ -16,6 +16,7 @@ import com.makan.drivelog.presentation.groups.GroupsScreen
 import com.makan.drivelog.presentation.leaderboard.LeaderboardScreen
 import com.makan.drivelog.presentation.map.MapScreen
 import com.makan.drivelog.presentation.navigate.NavigateScreen
+import com.makan.drivelog.presentation.profile.LicensesScreen
 import com.makan.drivelog.presentation.profile.ProfileScreen
 import com.makan.drivelog.presentation.profile.SettingsScreen
 import com.makan.drivelog.presentation.tripdetail.TripDetailScreen
@@ -50,12 +51,7 @@ fun NavGraph(
         composable(Screen.Navigate.route) { NavigateScreen() }
         composable(Screen.Board.route) {
             LeaderboardScreen(
-                onTripClick = { tripId ->
-                    navController.navigate(Screen.TripDetail.createRoute(tripId))
-                },
-                onNavigateToFriends = {
-                    navController.navigate(Screen.Friends.route)
-                }
+                onNavigateToFriends = { navController.navigate(Screen.Friends.route) }
             )
         }
         composable(Screen.Profile.route) {
@@ -74,7 +70,13 @@ fun NavGraph(
             })
         }
         composable(Screen.Settings.route) {
-            SettingsScreen(onBack = { navController.popBackStack() })
+            SettingsScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToLicenses = { navController.navigate(Screen.Licenses.route) }
+            )
+        }
+        composable(Screen.Licenses.route) {
+            LicensesScreen(onBack = { navController.popBackStack() })
         }
         composable(
             route = Screen.GroupDetail.route,

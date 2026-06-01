@@ -23,6 +23,11 @@ class FriendService @Inject constructor(
     suspend fun searchUsers(query: String): List<UserProfile> {
         if (query.isBlank()) return emptyList()
         val end = query + ''
+        @Suppress("UNCHECKED_CAST")
+        val myFriendIds = runCatching {
+            firestore.collection("users").document(currentUid).get().await()
+                .get("friendIds") as? List<String>
+        }.getOrNull() ?: emptyList()
         return runCatching {
             firestore.collection("users")
                 .whereGreaterThanOrEqualTo("displayName", query)
@@ -32,6 +37,8 @@ class FriendService @Inject constructor(
                     val d = doc.data ?: return@mapNotNull null
                     val uid = d["uid"] as? String ?: return@mapNotNull null
                     if (uid == currentUid) return@mapNotNull null
+                    val visibility = d["visibility"] as? String ?: "everyone"
+                    if (visibility == "friends_only" && uid !in myFriendIds) return@mapNotNull null
                     UserProfile(
                         uid         = uid,
                         displayName = d["displayName"] as? String ?: "",

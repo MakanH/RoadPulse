@@ -30,3 +30,11 @@ val TextTertiary  = Color(0x80FFFFFF) // 50%
 
 // Navigation
 val NavInactive = Color(0xFF8888AA)
+
+// Light mode
+val LightBackground     = Color(0xFFF5F5F0)
+val LightSurface        = Color(0xFFFFFFFF)
+val LightSurfaceVariant = Color(0xFFEEEEE8)
+val LightTextPrimary    = Color(0xFF1A1A2E)
+val LightTextSecondary  = Color(0xFF5F5E5A)
+val LightNavInactive    = Color(0xFF888899)

@@ -7,6 +7,7 @@ import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -15,7 +16,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.makan.drivelog.navigation.Screen
-import com.makan.drivelog.presentation.theme.BackgroundSecondary
 import com.makan.drivelog.presentation.theme.NavInactive
 import com.makan.drivelog.presentation.theme.TealActive
 
@@ -34,7 +34,7 @@ fun BottomNavBar(
     currentRoute: String?,
     onNavigate: (Screen) -> Unit
 ) {
-    NavigationBar(containerColor = BackgroundSecondary) {
+    NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
         navItems.forEach { item ->
             NavigationBarItem(
                 selected = currentRoute == item.screen.route,

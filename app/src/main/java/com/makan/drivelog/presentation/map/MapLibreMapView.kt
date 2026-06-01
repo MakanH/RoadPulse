@@ -24,6 +24,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.runtime.compositionLocalOf
 import com.google.gson.JsonObject
 import com.makan.drivelog.data.service.TrackingState
 import org.maplibre.android.location.LocationComponentActivationOptions
@@ -41,9 +42,12 @@ import org.maplibre.geojson.FeatureCollection
 import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
 
-internal const val DARK_STYLE_URL = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
+internal const val DARK_STYLE_URL  = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
+internal const val LIGHT_STYLE_URL = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
 private const val SOURCE_PREFIX = "dl-src-"
 private const val LAYER_PREFIX  = "dl-lyr-"
+
+val LocalMapStyleUrl = compositionLocalOf { DARK_STYLE_URL }
 
 internal class MapDrawingState {
     val drawnTripIds = mutableSetOf<Long>()
@@ -58,6 +62,7 @@ fun MapLibreMapView(
     onTripClick: (Long) -> Unit
 ) {
     val context = LocalContext.current
+    val mapStyleUrl = LocalMapStyleUrl.current
     val mapStyleState = remember { mutableStateOf<Style?>(null) }
     val drawingState  = remember { MapDrawingState() }
 
@@ -71,7 +76,7 @@ fun MapLibreMapView(
             mv.getMapAsync { map: MapLibreMap ->
                 map.uiSettings.isAttributionEnabled = false
                 map.uiSettings.isLogoEnabled = false
-                map.setStyle(DARK_STYLE_URL) { style ->
+                map.setStyle(mapStyleUrl) { style ->
                     mapStyleState.value = style
                     setupLocationComponent(map, style, context)
                     redrawTrips(style, latestTrips.value, drawingState, latestActiveTripId.value)

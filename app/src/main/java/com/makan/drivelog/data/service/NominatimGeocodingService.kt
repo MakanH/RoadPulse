@@ -30,6 +30,8 @@ class NominatimGeocodingService @Inject constructor() {
         .build()
 
     private val cache = mutableMapOf<String, String?>()
+
+    fun clearCache() { cache.clear() }
     private val rateMutex = Mutex()
     private var lastRequestMs = 0L
 

@@ -22,7 +22,7 @@ class TripsViewModel @Inject constructor(
     repository: TripRepository
 ) : ViewModel() {
 
-    enum class TripFilter { ALL_TIME, THIS_MONTH, THIS_WEEK, TODAY }
+    enum class TripFilter { ALL_TIME, THIS_MONTH, THIS_WEEK }
 
     data class YearMonth(val year: Int, val month: Int) // month: 1–12
 
@@ -79,7 +79,6 @@ class TripsViewModel @Inject constructor(
             TripFilter.ALL_TIME   -> 0L
             TripFilter.THIS_MONTH -> startOfMonth()
             TripFilter.THIS_WEEK  -> startOfWeek()
-            TripFilter.TODAY      -> startOfDay()
         }
         return trips.filter { it.startTime >= cutoff }
     }
