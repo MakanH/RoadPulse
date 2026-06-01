@@ -115,8 +115,22 @@ class SettingsViewModel @Inject constructor(
     }}
 
     fun sendFeedback() {
-        val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:feedback@drivelog.app")).apply {
+        val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:drivelogofficial1@gmail.com")).apply {
             putExtra(Intent.EXTRA_SUBJECT, "DriveLog Feedback")
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        runCatching { context.startActivity(intent) }
+    }
+
+    fun openPrivacyPolicy() {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://makan.github.io/drivelog/privacy-policy.html")).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        runCatching { context.startActivity(intent) }
+    }
+
+    fun openTermsOfService() {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://makan.github.io/drivelog/terms-of-service.html")).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         runCatching { context.startActivity(intent) }

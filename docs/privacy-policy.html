@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — DriveLog</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #ffffff;
+      color: #1a1a1a;
+      line-height: 1.7;
+      padding: 32px 20px 64px;
+    }
+    .container { max-width: 720px; margin: 0 auto; }
+    .brand { color: #5DCAA5; font-weight: 700; }
+    header { margin-bottom: 48px; border-bottom: 2px solid #5DCAA5; padding-bottom: 24px; }
+    header h1 { font-size: 2rem; font-weight: 700; margin-bottom: 6px; }
+    header p { color: #555; font-size: 0.95rem; }
+    h2 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      margin: 40px 0 12px;
+      color: #111;
+      border-left: 3px solid #5DCAA5;
+      padding-left: 12px;
+    }
+    p { margin-bottom: 14px; color: #333; }
+    ul { margin: 10px 0 14px 20px; color: #333; }
+    ul li { margin-bottom: 6px; }
+    a { color: #5DCAA5; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .highlight {
+      background: #f0faf7;
+      border: 1px solid #b8ead8;
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin: 20px 0;
+    }
+    .highlight p { margin: 0; font-weight: 500; color: #1a6b52; }
+    footer {
+      margin-top: 60px;
+      padding-top: 24px;
+      border-top: 1px solid #e5e5e5;
+      font-size: 0.875rem;
+      color: #777;
+    }
+    footer a { color: #777; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1><span class="brand">DriveLog</span> Privacy Policy</h1>
+      <p>Last updated: June 2026</p>
+    </header>
+
+    <p>DriveLog is built by Makan, an independent developer based in Montréal, Canada. This policy explains what information the app collects, why, and how it is handled. It is written in plain English — no legalese.</p>
+    <p>If you have any questions, contact us at <a href="mailto:drivelogofficial1@gmail.com">drivelogofficial1@gmail.com</a>.</p>
+
+    <h2>What information we collect</h2>
+    <p>DriveLog collects the following categories of data:</p>
+    <ul>
+      <li><strong>Account information</strong> — your email address and display name. If you sign in with Google, we also receive your profile photo from your Google account.</li>
+      <li><strong>Location data</strong> — GPS coordinates, speed, altitude, and bearing, collected while you are actively on a trip.</li>
+      <li><strong>Trip data</strong> — start and end location names (derived by reverse-geocoding your GPS coordinates), distance travelled, trip duration, and speed statistics.</li>
+      <li><strong>Device information</strong> — Android version and device model. This is used solely for diagnosing crashes and is never shared or sold.</li>
+      <li><strong>Social data</strong> — friend connections you create and the groups you join or create within the app.</li>
+    </ul>
+
+    <h2>How we collect it</h2>
+    <ul>
+      <li><strong>Account info</strong> is provided by you during sign-up, or pulled from your Google account when you use Google Sign-In.</li>
+      <li><strong>Location data</strong> is collected via your device's GPS sensor through a foreground service. A persistent notification is always visible on your device whenever tracking is active, so you always know when the app is collecting location data.</li>
+      <li><strong>Background location access</strong> is required to keep recording your route when you minimise the app during a drive. You can disable auto-tracking in Settings at any time.</li>
+      <li><strong>Trip summaries</strong> are synced to Firebase Firestore to enable social features (friend leaderboards and group drives).</li>
+    </ul>
+
+    <h2>How we use your data</h2>
+    <ul>
+      <li>To display your trip history, maps, and statistics within the app.</li>
+      <li>To power the social leaderboard among friends you have explicitly connected with.</li>
+      <li>To enable real-time location sharing during group drives — only with your explicit consent, and only shared with friends you have added.</li>
+      <li>To provide turn-by-turn navigation using your current GPS position.</li>
+    </ul>
+    <div class="highlight">
+      <p>We do NOT sell your data to third parties.<br>
+         We do NOT use your data for advertising.<br>
+         We do NOT share your data with anyone outside the friends you explicitly connect with in the app.</p>
+    </div>
+
+    <h2>Data storage and security</h2>
+    <ul>
+      <li>Detailed GPS route points are stored <strong>locally on your device</strong> in a SQLite database managed by the Android Room library.</li>
+      <li>Trip summaries and social data (friend lists, group memberships) are stored on <strong>Google Firebase (Firestore)</strong> servers.</li>
+      <li>Firebase servers used by DriveLog are located in <strong>northamerica-northeast1 (Montréal, Canada)</strong>.</li>
+      <li>All data in transit is encrypted using HTTPS/TLS.</li>
+    </ul>
+
+    <h2>Location data specifics</h2>
+    <p>Because DriveLog uses background location access, Google Play requires us to be explicit about how we use it:</p>
+    <ul>
+      <li>Location is collected <strong>only</strong> when the tracking service is running.</li>
+      <li>A visible, persistent notification is displayed at all times while tracking is active.</li>
+      <li>Background location is used solely to continue recording your route when the app is minimised — for example, when you receive a call or check another app during a drive.</li>
+      <li>You can disable auto-tracking in <strong>Settings → Tracking → Auto-tracking</strong>.</li>
+      <li>You can stop an active trip at any time using the notification or by tapping the tracking button in the app.</li>
+    </ul>
+
+    <h2>Third-party services</h2>
+    <p>DriveLog relies on the following third-party services. Each has its own privacy policy:</p>
+    <ul>
+      <li><strong>Google Firebase</strong> (authentication and cloud database) — <a href="https://firebase.google.com/support/privacy" target="_blank">firebase.google.com/support/privacy</a></li>
+      <li><strong>OpenStreetMap Nominatim</strong> (reverse geocoding trip start/end names) — <a href="https://osmfoundation.org/wiki/Privacy_Policy" target="_blank">osmfoundation.org/wiki/Privacy_Policy</a></li>
+      <li><strong>OpenRouteService</strong> (navigation routing) — <a href="https://openrouteservice.org/privacy-policy/" target="_blank">openrouteservice.org/privacy-policy</a></li>
+      <li><strong>CARTO</strong> (map tiles) — <a href="https://carto.com/privacy/" target="_blank">carto.com/privacy</a></li>
+    </ul>
+
+    <h2>Your rights and controls</h2>
+    <p>You are in control of your data. Within the app you can:</p>
+    <ul>
+      <li>View all your collected trip data in the Trips screen.</li>
+      <li>Export all your trips as a CSV file via <strong>Settings → Data → Export trips</strong>.</li>
+      <li>Delete individual trips from the trip detail screen, or delete all trip data via <strong>Settings → Data → Delete all trips</strong>.</li>
+      <li>Delete your entire account and all associated data via <strong>Settings → Account → Delete account</strong>.</li>
+      <li>Control who can view your profile via <strong>Settings → Privacy → Profile visibility</strong>.</li>
+      <li>Disable location sharing in group drives via <strong>Settings → Privacy → Share live location</strong>.</li>
+    </ul>
+
+    <h2>Data retention</h2>
+    <ul>
+      <li>Your data is kept for as long as your account is active.</li>
+      <li>When you delete your account, all data is permanently removed from both local device storage and Firebase within 30 days.</li>
+      <li>Deleted friend connections and group memberships are removed immediately.</li>
+    </ul>
+
+    <h2>Children's privacy</h2>
+    <p>DriveLog is not intended for anyone under 16 years of age. We do not knowingly collect personal data from children. If you believe a child has provided us with personal information, please contact us at <a href="mailto:drivelogofficial1@gmail.com">drivelogofficial1@gmail.com</a> and we will delete it promptly.</p>
+
+    <h2>Changes to this policy</h2>
+    <p>We may update this policy from time to time. When we do, we will notify you through the app. Your continued use of DriveLog after any changes constitutes your acceptance of the updated policy.</p>
+
+    <footer>
+      <p>DriveLog is developed by Makan, Montréal, Canada.</p>
+      <p>Contact: <a href="mailto:drivelogofficial1@gmail.com">drivelogofficial1@gmail.com</a></p>
+      <p style="margin-top:8px">
+        <a href="terms-of-service.html">Terms of Service</a>
+      </p>
+    </footer>
+  </div>
+</body>
+</html>

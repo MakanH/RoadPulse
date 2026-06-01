@@ -4,6 +4,7 @@ import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -19,6 +20,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -142,7 +148,34 @@ fun LoginScreen(
             Text("Continue with Google",
                 color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
         }
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(24.dp))
+        LegalLinks()
+        Spacer(Modifier.height(16.dp))
+    }
+}
+
+@Composable
+internal fun LegalLinks() {
+    val uriHandler = LocalUriHandler.current
+    val privacyUrl = "https://makan.github.io/drivelog/privacy-policy.html"
+    val termsUrl   = "https://makan.github.io/drivelog/terms-of-service.html"
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+    Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
+        Text(
+            buildAnnotatedString {
+                withStyle(SpanStyle(color = muted, textDecoration = TextDecoration.Underline)) { append("Privacy Policy") }
+            },
+            fontSize = 11.sp,
+            modifier = Modifier.clickable { uriHandler.openUri(privacyUrl) }
+        )
+        Text("  ·  ", fontSize = 11.sp, color = muted)
+        Text(
+            buildAnnotatedString {
+                withStyle(SpanStyle(color = muted, textDecoration = TextDecoration.Underline)) { append("Terms of Service") }
+            },
+            fontSize = 11.sp,
+            modifier = Modifier.clickable { uriHandler.openUri(termsUrl) }
+        )
     }
 }
 

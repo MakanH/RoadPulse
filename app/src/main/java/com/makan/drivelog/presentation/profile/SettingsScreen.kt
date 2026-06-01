@@ -21,8 +21,10 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.GpsFixed
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.People
@@ -237,8 +239,14 @@ fun SettingsScreen(
                     ActionRow(Icons.Filled.Info, "Open source licenses", "",
                         onClick = onNavigateToLicenses)
                     Div()
+                    ActionRow(Icons.Filled.Security, "Privacy policy", "",
+                        onClick = viewModel::openPrivacyPolicy)
+                    Div()
+                    ActionRow(Icons.Filled.Description, "Terms of service", "",
+                        onClick = viewModel::openTermsOfService)
+                    Div()
                     ActionRow(Icons.Filled.Info, "Send feedback",
-                        "feedback@drivelog.app",
+                        "drivelogofficial1@gmail.com",
                         onClick = viewModel::sendFeedback)
                 }
             }

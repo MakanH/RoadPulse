@@ -144,7 +144,9 @@ fun SignUpScreen(
             Spacer(Modifier.width(8.dp))
             Text("Continue with Google", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
         }
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(24.dp))
+        LegalLinks()
+        Spacer(Modifier.height(16.dp))
     }
 }
 
