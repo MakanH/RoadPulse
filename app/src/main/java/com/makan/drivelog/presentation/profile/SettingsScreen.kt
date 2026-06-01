@@ -1,15 +1,12 @@
 package com.makan.drivelog.presentation.profile
 
 import android.Manifest
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -107,7 +104,6 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
-    val activity = context as Activity
 
     // ── Lifecycle-aware location permission check ─────────────────────────────
     var hasLocPerm by remember { mutableStateOf(hasLocationPermission(context)) }
@@ -144,32 +140,10 @@ fun SettingsScreen(
     var showSignOutDialog    by remember { mutableStateOf(false) }
     var showDeleteDataDialog by remember { mutableStateOf(false) }
     var showDeleteAcctDialog by remember { mutableStateOf(false) }
-    var showReauthDialog     by remember { mutableStateOf(false) }
     var reauthPassword       by remember { mutableStateOf("") }
 
     // Intercept back during deletion so the user can't navigate away mid-process
     BackHandler(enabled = isDeleting) {}
-
-    // Register Google re-auth launcher unconditionally at composition time
-    val googleReauthLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        viewModel.reauthWithGoogleAndDelete(result.data)
-    }
-
-    // When Firebase requires re-authentication, route to the right flow
-    LaunchedEffect(reauthNeeded) {
-        if (reauthNeeded) {
-            viewModel.dismissReauth()
-            if (viewModel.isGoogleUser) {
-                val intent = viewModel.getGoogleReauthIntent(activity)
-                googleReauthLauncher.launch(intent)
-            } else {
-                reauthPassword = ""
-                showReauthDialog = true
-            }
-        }
-    }
 
     // ── Dialogs ───────────────────────────────────────────────────────────────
 
@@ -187,9 +161,9 @@ fun SettingsScreen(
         onDismiss = { showDeleteAcctDialog = false }
     )
 
-    if (showReauthDialog) {
+    if (reauthNeeded) {
         AlertDialog(
-            onDismissRequest = { showReauthDialog = false; reauthPassword = "" },
+            onDismissRequest = { viewModel.dismissReauth(); reauthPassword = "" },
             title = { Text("Verify your identity") },
             text  = {
                 Column {
@@ -210,15 +184,15 @@ fun SettingsScreen(
                 TextButton(
                     onClick = {
                         val pwd = reauthPassword
-                        showReauthDialog = false
                         reauthPassword = ""
+                        viewModel.dismissReauth()
                         viewModel.reauthWithEmailAndDelete(pwd)
                     },
                     enabled = reauthPassword.isNotEmpty()
                 ) { Text("Confirm", color = CoralPrimary) }
             },
             dismissButton = {
-                TextButton(onClick = { showReauthDialog = false; reauthPassword = "" }) {
+                TextButton(onClick = { viewModel.dismissReauth(); reauthPassword = "" }) {
                     Text("Cancel")
                 }
             }

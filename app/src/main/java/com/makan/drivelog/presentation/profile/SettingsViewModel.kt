@@ -1,6 +1,5 @@
 package com.makan.drivelog.presentation.profile
 
-import android.app.Activity
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
@@ -9,11 +8,9 @@ import android.os.Environment
 import android.provider.MediaStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException
-import com.google.firebase.auth.GoogleAuthProvider
 import com.makan.drivelog.data.local.PreferencesManager
 import com.makan.drivelog.data.service.AuthService
 import com.makan.drivelog.data.service.NominatimGeocodingService
@@ -106,14 +103,28 @@ class SettingsViewModel @Inject constructor(
 
         repository.deleteAllData()
 
-        val authResult = authService.deleteAccount()
-        if (authResult.isFailure) {
-            val e = authResult.exceptionOrNull()
-            if (e is FirebaseAuthRecentLoginRequiredException) {
-                _reauthNeeded.value = true
+        var authResult = authService.deleteAccount()
+
+        // If the session token has expired, re-auth silently then retry
+        if (authResult.exceptionOrNull() is FirebaseAuthRecentLoginRequiredException) {
+            if (authService.isGoogleUser()) {
+                val reauthResult = authService.reauthenticateWithGoogle()
+                if (reauthResult.isFailure) {
+                    _snackbar.emit("Re-authentication failed: ${reauthResult.exceptionOrNull()?.message}")
+                    _isDeleting.value = false
+                    return@launch
+                }
+                authResult = authService.deleteAccount()
             } else {
-                _snackbar.emit("Failed to delete account: ${e?.message}")
+                // Email users must enter their password — show the dialog
+                _reauthNeeded.value = true
+                _isDeleting.value = false
+                return@launch
             }
+        }
+
+        if (authResult.isFailure) {
+            _snackbar.emit("Failed to delete account: ${authResult.exceptionOrNull()?.message}")
             _isDeleting.value = false
         }
         // On success, navigation to login happens automatically via the AuthStateListener
@@ -139,26 +150,6 @@ class SettingsViewModel @Inject constructor(
             _isDeleting.value = false
         }
     }}
-
-    fun reauthWithGoogleAndDelete(data: Intent?) { viewModelScope.launch {
-        _isDeleting.value = true
-        runCatching {
-            val account = GoogleSignIn.getSignedInAccountFromIntent(data).await()
-            val credential = GoogleAuthProvider.getCredential(account.idToken!!, null)
-            auth.currentUser?.reauthenticate(credential)?.await()
-        }.onFailure { e ->
-            _snackbar.emit("Re-authentication failed: ${e.message}")
-            _isDeleting.value = false
-            return@launch
-        }
-        authService.deleteAccount().onFailure { e ->
-            _snackbar.emit("Failed to delete account: ${e.message}")
-            _isDeleting.value = false
-        }
-    }}
-
-    suspend fun getGoogleReauthIntent(activity: Activity): Intent =
-        authService.getGoogleSignInIntent(activity)
 
     fun clearGeocodingCache() {
         geocodingService.clearCache()

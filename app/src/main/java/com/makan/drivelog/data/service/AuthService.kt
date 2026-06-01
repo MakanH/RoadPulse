@@ -7,6 +7,7 @@ import android.util.Log
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.UserProfileChangeRequest
@@ -118,7 +119,30 @@ class AuthService @Inject constructor(
 
     fun signOut() = auth.signOut()
 
-    suspend fun deleteAccount(): Result<Unit> = runCatching {
-        auth.currentUser?.delete()?.await() ?: Unit
+    suspend fun deleteAccount(): Result<Unit> {
+        return try {
+            val user = auth.currentUser ?: return Result.failure(Exception("Not signed in"))
+            user.delete().await()
+            Result.success(Unit)
+        } catch (e: FirebaseAuthRecentLoginRequiredException) {
+            Result.failure(e)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // Silent re-auth using the cached Google account — no account picker shown.
+    suspend fun reauthenticateWithGoogle(): Result<Unit> {
+        return try {
+            val user = auth.currentUser ?: return Result.failure(Exception("Not signed in"))
+            val lastAccount = GoogleSignIn.getLastSignedInAccount(context)
+            val idToken = lastAccount?.idToken
+                ?: return Result.failure(Exception("No cached Google credential"))
+            val credential = GoogleAuthProvider.getCredential(idToken, null)
+            user.reauthenticate(credential).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }
