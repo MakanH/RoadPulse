@@ -1,7 +1,8 @@
 package com.makan.drivelog.presentation.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,14 +40,18 @@ private enum class TripAccent(val bgColor: Color, val iconColor: Color, val labe
     CORAL(Color(0xFFFAECE7), Color(0xFF993C1D), Color(0xFFD85A30))
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun TripRow(trip: Trip, index: Int, onClick: () -> Unit) {
+fun TripRow(trip: Trip, index: Int, onClick: () -> Unit, onLongPress: ((Trip) -> Unit)? = null) {
     val accent = TripAccent.entries[index % TripAccent.entries.size]
     val units  = LocalUnitPrefs.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = { onLongPress?.invoke(trip) }
+            )
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

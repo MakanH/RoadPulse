@@ -19,6 +19,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -26,11 +28,16 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -89,6 +96,7 @@ fun TripDetailScreen(
                 scrubIndex  = scrubIndex,
                 mapStyleUrl = getMapStyleUrl(mapStylePref),
                 onScrub     = viewModel::onScrub,
+                onRename    = viewModel::renameTrip,
                 onBack      = onBack
             )
         }
@@ -104,8 +112,19 @@ private fun TripDetailContent(
     scrubIndex: Int,
     mapStyleUrl: String,
     onScrub: (Int) -> Unit,
+    onRename: (String) -> Unit,
     onBack: () -> Unit
 ) {
+    var showRenameDialog by remember { mutableStateOf(false) }
+
+    if (showRenameDialog) {
+        RenameDialog(
+            currentName = trip.name,
+            onDismiss = { showRenameDialog = false },
+            onSave = { newName -> onRename(newName); showRenameDialog = false }
+        )
+    }
+
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         // ── Map section (35% of screen) ──────────────────────────────────────
         Box(modifier = Modifier.fillMaxWidth().weight(0.35f)) {
@@ -115,7 +134,7 @@ private fun TripDetailContent(
                 scrubIndex = scrubIndex,
                 styleUrl   = mapStyleUrl
             )
-            TopBar(trip = trip, onBack = onBack)
+            TopBar(trip = trip, onBack = onBack, onRenameClick = { showRenameDialog = true })
         }
 
         // ── Scrollable content (65%) ──────────────────────────────────────────
@@ -145,7 +164,7 @@ private fun TripDetailContent(
 // ── Top bar overlay ───────────────────────────────────────────────────────────
 
 @Composable
-private fun TopBar(trip: Trip, onBack: () -> Unit) {
+private fun TopBar(trip: Trip, onBack: () -> Unit, onRenameClick: () -> Unit) {
     val dateStr = SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(trip.startTime))
     Box(
         modifier = Modifier
@@ -158,7 +177,10 @@ private fun TopBar(trip: Trip, onBack: () -> Unit) {
         }
         Text(
             text = trip.name,
-            modifier = Modifier.align(Alignment.Center).padding(horizontal = 56.dp),
+            modifier = Modifier
+                .align(Alignment.Center)
+                .padding(horizontal = 56.dp)
+                .clickable { onRenameClick() },
             color = Color.White,
             fontWeight = FontWeight.SemiBold,
             fontSize = 14.sp,
@@ -172,6 +194,29 @@ private fun TopBar(trip: Trip, onBack: () -> Unit) {
             fontSize = 11.sp
         )
     }
+}
+
+@Composable
+private fun RenameDialog(currentName: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var text by remember { mutableStateOf(currentName) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Rename trip") },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { if (text.isNotBlank()) onSave(text) }, enabled = text.isNotBlank()) {
+                Text("Save")
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
 }
 
 // ── Speed scrubber ────────────────────────────────────────────────────────────

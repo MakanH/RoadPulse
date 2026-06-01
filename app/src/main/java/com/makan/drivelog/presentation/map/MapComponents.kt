@@ -113,7 +113,12 @@ private fun StatCard(label: String, value: String, unit: String, modifier: Modif
 // ── Recent trips list ─────────────────────────────────────────────────────────
 
 @Composable
-fun RecentTripsList(trips: List<Trip>, onTripClick: (Long) -> Unit, modifier: Modifier = Modifier) {
+fun RecentTripsList(
+    trips: List<Trip>,
+    onTripClick: (Long) -> Unit,
+    onLongPress: ((Trip) -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
     Column(modifier = modifier) {
         Text(
             text = "Recent trips",
@@ -140,7 +145,12 @@ fun RecentTripsList(trips: List<Trip>, onTripClick: (Long) -> Unit, modifier: Mo
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant)
         ) {
             trips.forEachIndexed { index, trip ->
-                TripRow(trip = trip, index = index, onClick = { onTripClick(trip.id) })
+                TripRow(
+                    trip = trip,
+                    index = index,
+                    onClick = { onTripClick(trip.id) },
+                    onLongPress = onLongPress
+                )
                 if (index < trips.lastIndex) {
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 16.dp),

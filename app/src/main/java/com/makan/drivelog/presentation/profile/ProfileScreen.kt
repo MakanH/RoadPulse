@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -43,6 +44,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.makan.drivelog.presentation.components.OnboardingPopup
+import com.makan.drivelog.presentation.onboarding.OnboardingViewModel
 import com.makan.drivelog.presentation.theme.TealPrimary
 
 @Composable
@@ -50,9 +53,11 @@ fun ProfileScreen(
     onNavigateToFriends: () -> Unit = {},
     onNavigateToGroups: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
-    viewModel: ProfileViewModel = hiltViewModel()
+    viewModel: ProfileViewModel = hiltViewModel(),
+    onboardingVm: OnboardingViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val uiState        by viewModel.uiState.collectAsStateWithLifecycle()
+    val onboardingSeen by onboardingVm.profileSeen.collectAsStateWithLifecycle(true)
 
     val state = uiState
     if (state == null) {
@@ -63,6 +68,7 @@ fun ProfileScreen(
         return
     }
 
+    Box(Modifier.fillMaxSize()) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
         contentPadding = PaddingValues(bottom = 32.dp)
@@ -93,7 +99,17 @@ fun ProfileScreen(
                 onGroups    = onNavigateToGroups
             )
         }
+    } // end LazyColumn
+
+    if (!onboardingSeen) {
+        OnboardingPopup(
+            icon      = Icons.Filled.Person,
+            title     = "Your profile",
+            body      = "View your lifetime stats, manage friends and groups, and customize the app in settings. Tap the gear icon for appearance, tracking, privacy, and more.",
+            onDismiss = onboardingVm::markProfileSeen
+        )
     }
+    } // end Box
 }
 
 // ── Avatar ────────────────────────────────────────────────────────────────────

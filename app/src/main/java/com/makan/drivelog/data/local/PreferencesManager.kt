@@ -37,6 +37,12 @@ class PreferencesManager @Inject constructor(
         // Privacy
         private val KEY_SHARE_LIVE_LOCATION   = booleanPreferencesKey("share_live_location")
         private val KEY_PROFILE_VISIBILITY    = stringPreferencesKey("profile_visibility")
+        // Onboarding
+        private val KEY_ONBOARDING_MAP      = booleanPreferencesKey("onboarding_map_seen")
+        private val KEY_ONBOARDING_TRIPS    = booleanPreferencesKey("onboarding_trips_seen")
+        private val KEY_ONBOARDING_NAVIGATE = booleanPreferencesKey("onboarding_navigate_seen")
+        private val KEY_ONBOARDING_BOARD    = booleanPreferencesKey("onboarding_board_seen")
+        private val KEY_ONBOARDING_PROFILE  = booleanPreferencesKey("onboarding_profile_seen")
     }
 
     // ── Flows ─────────────────────────────────────────────────────────────────
@@ -48,11 +54,16 @@ class PreferencesManager @Inject constructor(
     val theme:                     Flow<String>  = context.dataStore.data.map { it[KEY_THEME]                 ?: "dark" }
     val mapStyle:                  Flow<String>  = context.dataStore.data.map { it[KEY_MAP_STYLE]             ?: "dark" }
     val gpsAccuracy:               Flow<String>  = context.dataStore.data.map { it[KEY_GPS_ACCURACY]          ?: "high" }
-    val minTripDistance:           Flow<String>  = context.dataStore.data.map { it[KEY_MIN_TRIP_DIST]         ?: "500m" }
+    val minTripDistance:           Flow<String>  = context.dataStore.data.map { it[KEY_MIN_TRIP_DIST]         ?: "100m" }
     val tripSummaryNotification:   Flow<Boolean> = context.dataStore.data.map { it[KEY_TRIP_SUMMARY_NOTIF]   ?: true }
     val friendActivityNotification:Flow<Boolean> = context.dataStore.data.map { it[KEY_FRIEND_ACTIVITY_NOTIF]?: true }
     val shareLiveLocation:         Flow<Boolean> = context.dataStore.data.map { it[KEY_SHARE_LIVE_LOCATION]  ?: true }
     val profileVisibility:         Flow<String>  = context.dataStore.data.map { it[KEY_PROFILE_VISIBILITY]   ?: "everyone" }
+    val onboardingMapSeen:         Flow<Boolean> = context.dataStore.data.map { it[KEY_ONBOARDING_MAP]      ?: false }
+    val onboardingTripsSeen:       Flow<Boolean> = context.dataStore.data.map { it[KEY_ONBOARDING_TRIPS]    ?: false }
+    val onboardingNavigateSeen:    Flow<Boolean> = context.dataStore.data.map { it[KEY_ONBOARDING_NAVIGATE] ?: false }
+    val onboardingBoardSeen:       Flow<Boolean> = context.dataStore.data.map { it[KEY_ONBOARDING_BOARD]    ?: false }
+    val onboardingProfileSeen:     Flow<Boolean> = context.dataStore.data.map { it[KEY_ONBOARDING_PROFILE]  ?: false }
 
     // ── Setters ───────────────────────────────────────────────────────────────
 
@@ -68,4 +79,9 @@ class PreferencesManager @Inject constructor(
     suspend fun setFriendActivityNotification(v: Boolean){ context.dataStore.edit { it[KEY_FRIEND_ACTIVITY_NOTIF]= v } }
     suspend fun setShareLiveLocation(v: Boolean)        { context.dataStore.edit { it[KEY_SHARE_LIVE_LOCATION]  = v } }
     suspend fun setProfileVisibility(v: String)         { context.dataStore.edit { it[KEY_PROFILE_VISIBILITY]   = v } }
+    suspend fun setOnboardingMapSeen()      { context.dataStore.edit { it[KEY_ONBOARDING_MAP]      = true } }
+    suspend fun setOnboardingTripsSeen()    { context.dataStore.edit { it[KEY_ONBOARDING_TRIPS]    = true } }
+    suspend fun setOnboardingNavigateSeen() { context.dataStore.edit { it[KEY_ONBOARDING_NAVIGATE] = true } }
+    suspend fun setOnboardingBoardSeen()    { context.dataStore.edit { it[KEY_ONBOARDING_BOARD]    = true } }
+    suspend fun setOnboardingProfileSeen()  { context.dataStore.edit { it[KEY_ONBOARDING_PROFILE]  = true } }
 }

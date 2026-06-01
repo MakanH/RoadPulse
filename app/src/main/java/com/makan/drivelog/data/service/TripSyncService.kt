@@ -25,6 +25,7 @@ class TripSyncService @Inject constructor(
                 .set(
                     hashMapOf(
                         "tripId"          to trip.id.toString(),
+                        "tripName"        to trip.name,
                         "displayName"     to displayName,
                         "photoUrl"        to user.photoUrl?.toString(),
                         "topSpeed"        to trip.topSpeed,
@@ -36,6 +37,15 @@ class TripSyncService @Inject constructor(
                         "startTime"       to Timestamp(Date(trip.startTime))
                     )
                 ).await()
+        }
+    }
+
+    suspend fun updateTripNameInFirestore(tripId: Long, newName: String) {
+        val uid = auth.currentUser?.uid ?: return
+        runCatching {
+            firestore.collection("users").document(uid)
+                .collection("trips").document(tripId.toString())
+                .update("tripName", newName).await()
         }
     }
 }

@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -55,6 +56,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.makan.drivelog.presentation.components.OnboardingPopup
+import com.makan.drivelog.presentation.onboarding.OnboardingViewModel
 import com.makan.drivelog.presentation.theme.TealPrimary
 import com.makan.drivelog.presentation.util.LocalUnitPrefs
 
@@ -63,18 +66,31 @@ private val AmberAccent = Color(0xFFEF9F27)
 @Composable
 fun LeaderboardScreen(
     onNavigateToFriends: () -> Unit = {},
-    viewModel: LeaderboardViewModel = hiltViewModel()
+    viewModel: LeaderboardViewModel = hiltViewModel(),
+    onboardingVm: OnboardingViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val uiState        by viewModel.uiState.collectAsStateWithLifecycle()
+    val onboardingSeen by onboardingVm.boardSeen.collectAsStateWithLifecycle(true)
 
-    when (val state = uiState) {
-        is LeaderboardViewModel.UiState.Loading ->
-            Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
-                contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = TealPrimary)
-            }
-        is LeaderboardViewModel.UiState.Success ->
-            SocialContent(state.social, onNavigateToFriends)
+    Box(Modifier.fillMaxSize()) {
+        when (val state = uiState) {
+            is LeaderboardViewModel.UiState.Loading ->
+                Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+                    contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = TealPrimary)
+                }
+            is LeaderboardViewModel.UiState.Success ->
+                SocialContent(state.social, onNavigateToFriends)
+        }
+
+        if (!onboardingSeen) {
+            OnboardingPopup(
+                icon      = Icons.Filled.EmojiEvents,
+                title     = "Leaderboard",
+                body      = "See how you stack up against your friends. Compare top speeds, longest trips, and total distance. Add friends from your profile to get started.",
+                onDismiss = onboardingVm::markBoardSeen
+            )
+        }
     }
 }
 

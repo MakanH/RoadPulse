@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.makan.drivelog.data.service.GroupService
 import com.makan.drivelog.data.service.LocationTrackingService
 import com.makan.drivelog.data.service.TrackingState
+import com.makan.drivelog.data.service.TripSyncService
 import com.makan.drivelog.domain.model.Group
 import com.makan.drivelog.domain.model.LocationPoint
 import com.makan.drivelog.domain.model.Trip
@@ -37,7 +38,8 @@ data class TodayStats(
 @HiltViewModel
 class MapViewModel @Inject constructor(
     private val repository: TripRepository,
-    private val groupService: GroupService
+    private val groupService: GroupService,
+    private val tripSyncService: TripSyncService
 ) : ViewModel() {
 
     sealed class UiState {
@@ -111,6 +113,13 @@ class MapViewModel @Inject constructor(
 
     fun stopTracking(context: Context) {
         context.startService(LocationTrackingService.stopIntent(context))
+    }
+
+    fun renameTrip(tripId: Long, newName: String) {
+        viewModelScope.launch {
+            repository.renameTrip(tripId, newName)
+            tripSyncService.updateTripNameInFirestore(tripId, newName)
+        }
     }
 
     private fun computeTodayStats(trips: List<Trip>): TodayStats {

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -23,6 +24,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -33,21 +37,37 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.makan.drivelog.domain.model.Group
+import com.makan.drivelog.domain.model.Trip
+import com.makan.drivelog.presentation.components.OnboardingPopup
+import com.makan.drivelog.presentation.onboarding.OnboardingViewModel
 import com.makan.drivelog.presentation.profile.SettingsViewModel
 import com.makan.drivelog.presentation.theme.TealDark
 import com.makan.drivelog.presentation.theme.TealPrimary
+import com.makan.drivelog.presentation.trips.TripRenameDialog
 
 @Composable
 fun MapScreen(
     viewModel: MapViewModel = hiltViewModel(),
     settingsViewModel: SettingsViewModel = hiltViewModel(),
+    onboardingVm: OnboardingViewModel = hiltViewModel(),
     onTripClick: (Long) -> Unit = {},
     onOpenGroupMap: ((groupId: String, sessionId: String) -> Unit)? = null
 ) {
-    val uiState      by viewModel.uiState.collectAsStateWithLifecycle()
-    val mapStylePref by settingsViewModel.prefs.mapStyle.collectAsStateWithLifecycle("dark")
+    val uiState        by viewModel.uiState.collectAsStateWithLifecycle()
+    val mapStylePref   by settingsViewModel.prefs.mapStyle.collectAsStateWithLifecycle("dark")
+    val onboardingSeen by onboardingVm.mapSeen.collectAsStateWithLifecycle(true)
     val context = LocalContext.current
+    var renameTarget by remember { mutableStateOf<Trip?>(null) }
 
+    renameTarget?.let { trip ->
+        TripRenameDialog(
+            currentName = trip.name,
+            onDismiss   = { renameTarget = null },
+            onSave      = { newName -> viewModel.renameTrip(trip.id, newName); renameTarget = null }
+        )
+    }
+
+    Box(Modifier.fillMaxSize()) {
     Column(modifier = Modifier.fillMaxSize()) {
         // ── Active group banner ───────────────────────────────────────────────
         val activeGroup = (uiState as? MapViewModel.UiState.Success)?.activeGroup
@@ -161,7 +181,8 @@ fun MapScreen(
                         item {
                             RecentTripsList(
                                 trips = state.recentTrips,
-                                onTripClick = onTripClick
+                                onTripClick = onTripClick,
+                                onLongPress = { renameTarget = it }
                             )
                             Spacer(Modifier.height(16.dp))
                         }
@@ -169,7 +190,17 @@ fun MapScreen(
                 }
             }
         }
+    } // end Column
+
+    if (!onboardingSeen) {
+        OnboardingPopup(
+            icon      = Icons.Filled.Map,
+            title     = "Your driving map",
+            body      = "All your trips appear here as colored routes. Tap any route to see details. Hit the play button to start tracking a drive — the app will also detect trips automatically.",
+            onDismiss = onboardingVm::markMapSeen
+        )
     }
+    } // end Box
 }
 
 @Composable

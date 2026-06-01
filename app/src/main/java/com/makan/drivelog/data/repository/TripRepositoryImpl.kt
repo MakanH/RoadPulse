@@ -79,6 +79,9 @@ class TripRepositoryImpl @Inject constructor(
     override suspend fun updateTripNames(tripId: Long, name: String, startName: String?, endName: String?) =
         tripDao.updateTripNames(tripId, name, startName, endName)
 
+    override suspend fun renameTrip(tripId: Long, newName: String) =
+        tripDao.renameTrip(tripId, newName)
+
     override suspend fun deleteAllData() {
         locationPointDao.deleteAll()
         tripDao.deleteAll()

@@ -3,6 +3,7 @@ package com.makan.drivelog.presentation.tripdetail
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.makan.drivelog.data.service.TripSyncService
 import com.makan.drivelog.domain.model.LocationPoint
 import com.makan.drivelog.domain.model.Trip
 import com.makan.drivelog.domain.model.TripStats
@@ -28,7 +29,8 @@ data class TripSegment(
 @HiltViewModel
 class TripDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val repository: TripRepository
+    private val repository: TripRepository,
+    private val tripSyncService: TripSyncService
 ) : ViewModel() {
 
     private val tripId: Long = savedStateHandle.get<Long>(Screen.TripDetail.ARG_TRIP_ID) ?: -1L
@@ -75,6 +77,15 @@ class TripDetailViewModel @Inject constructor(
 
     fun onScrub(index: Int) {
         _scrubIndex.value = index
+    }
+
+    fun renameTrip(newName: String) {
+        val trimmed = newName.trim()
+        if (trimmed.isBlank()) return
+        viewModelScope.launch {
+            repository.renameTrip(tripId, trimmed)
+            tripSyncService.updateTripNameInFirestore(tripId, trimmed)
+        }
     }
 
     private fun computeSegments(points: List<LocationPoint>): List<TripSegment> {

@@ -21,6 +21,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -33,6 +35,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -49,7 +52,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.makan.drivelog.domain.model.Trip
+import com.makan.drivelog.presentation.components.OnboardingPopup
 import com.makan.drivelog.presentation.components.TripRow
+import com.makan.drivelog.presentation.onboarding.OnboardingViewModel
 import com.makan.drivelog.presentation.theme.TealPrimary
 import com.makan.drivelog.presentation.trips.TripsViewModel.TripFilter
 import com.makan.drivelog.presentation.trips.TripsViewModel.YearMonth
@@ -59,49 +64,95 @@ import com.makan.drivelog.presentation.util.LocalUnitPrefs
 @Composable
 fun TripsScreen(
     onTripClick: (Long) -> Unit = {},
-    viewModel: TripsViewModel = hiltViewModel()
+    viewModel: TripsViewModel = hiltViewModel(),
+    onboardingVm: OnboardingViewModel = hiltViewModel()
 ) {
     val uiState         by viewModel.uiState.collectAsStateWithLifecycle()
     val filter          by viewModel.filter.collectAsStateWithLifecycle()
     val yearMonthFilter by viewModel.yearMonthFilter.collectAsStateWithLifecycle()
+    val onboardingSeen  by onboardingVm.tripsSeen.collectAsStateWithLifecycle(true)
     var showPicker      by remember { mutableStateOf(false) }
+    var renameTarget    by remember { mutableStateOf<Trip?>(null) }
 
-    when (val state = uiState) {
-        is TripsViewModel.UiState.Loading -> {
-            Box(
-                modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
-                contentAlignment = Alignment.Center
-            ) { CircularProgressIndicator(color = TealPrimary) }
-        }
-        is TripsViewModel.UiState.Success -> {
-            TripsContent(
-                state           = state,
-                filter          = filter,
-                yearMonthFilter = yearMonthFilter,
-                onFilterChange  = viewModel::setFilter,
-                onShowPicker    = { showPicker = true },
-                onClearYmFilter = viewModel::clearYearMonthFilter,
-                onTripClick     = onTripClick
-            )
+    renameTarget?.let { trip ->
+        TripRenameDialog(
+            currentName = trip.name,
+            onDismiss   = { renameTarget = null },
+            onSave      = { newName -> viewModel.renameTrip(trip.id, newName); renameTarget = null }
+        )
+    }
 
-            if (showPicker) {
-                YearMonthPickerSheet(
-                    availableYears    = state.availableYears,
-                    tripsPerYearMonth = state.tripsPerYearMonth,
-                    currentFilter     = yearMonthFilter,
-                    onApply           = { ym ->
-                        viewModel.setYearMonthFilter(ym.year, ym.month)
-                        showPicker = false
-                    },
-                    onShowAll         = {
-                        viewModel.clearYearMonthFilter()
-                        showPicker = false
-                    },
-                    onDismiss         = { showPicker = false }
+    Box(Modifier.fillMaxSize()) {
+        when (val state = uiState) {
+            is TripsViewModel.UiState.Loading -> {
+                Box(
+                    modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+                    contentAlignment = Alignment.Center
+                ) { CircularProgressIndicator(color = TealPrimary) }
+            }
+            is TripsViewModel.UiState.Success -> {
+                TripsContent(
+                    state           = state,
+                    filter          = filter,
+                    yearMonthFilter = yearMonthFilter,
+                    onFilterChange  = viewModel::setFilter,
+                    onShowPicker    = { showPicker = true },
+                    onClearYmFilter = viewModel::clearYearMonthFilter,
+                    onTripClick     = onTripClick,
+                    onLongPress     = { renameTarget = it }
                 )
+
+                if (showPicker) {
+                    YearMonthPickerSheet(
+                        availableYears    = state.availableYears,
+                        tripsPerYearMonth = state.tripsPerYearMonth,
+                        currentFilter     = yearMonthFilter,
+                        onApply           = { ym ->
+                            viewModel.setYearMonthFilter(ym.year, ym.month)
+                            showPicker = false
+                        },
+                        onShowAll         = {
+                            viewModel.clearYearMonthFilter()
+                            showPicker = false
+                        },
+                        onDismiss         = { showPicker = false }
+                    )
+                }
             }
         }
+
+        if (!onboardingSeen) {
+            OnboardingPopup(
+                icon      = Icons.Filled.History,
+                title     = "Trip history",
+                body      = "Every drive is logged here with distance, speed, and duration. Filter by time period or browse by month. Tap any trip to explore it in detail with the speed scrubber.",
+                onDismiss = onboardingVm::markTripsSeen
+            )
+        }
     }
+}
+
+@Composable
+internal fun TripRenameDialog(currentName: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var text by remember { mutableStateOf(currentName) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Rename trip") },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                singleLine = true,
+                modifier = androidx.compose.ui.Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { if (text.isNotBlank()) onSave(text) }, enabled = text.isNotBlank()) {
+                Text("Save")
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
 }
 
 // ── Main content ──────────────────────────────────────────────────────────────
@@ -114,7 +165,8 @@ private fun TripsContent(
     onFilterChange: (TripFilter) -> Unit,
     onShowPicker: () -> Unit,
     onClearYmFilter: () -> Unit,
-    onTripClick: (Long) -> Unit
+    onTripClick: (Long) -> Unit,
+    onLongPress: (Trip) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
@@ -140,7 +192,12 @@ private fun TripsContent(
             state.grouped.forEach { (dateLabel, trips) ->
                 stickyHeader(key = dateLabel) { DateHeader(dateLabel) }
                 itemsIndexed(trips, key = { _, trip -> trip.id }) { index, trip ->
-                    TripRow(trip = trip, index = index, onClick = { onTripClick(trip.id) })
+                    TripRow(
+                        trip = trip,
+                        index = index,
+                        onClick = { onTripClick(trip.id) },
+                        onLongPress = onLongPress
+                    )
                 }
             }
         }

@@ -2,6 +2,7 @@ package com.makan.drivelog.presentation.trips
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.makan.drivelog.data.service.TripSyncService
 import com.makan.drivelog.domain.model.Trip
 import com.makan.drivelog.domain.repository.TripRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -11,6 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -19,7 +21,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class TripsViewModel @Inject constructor(
-    repository: TripRepository
+    private val repository: TripRepository,
+    private val tripSyncService: TripSyncService
 ) : ViewModel() {
 
     enum class TripFilter { ALL_TIME, THIS_MONTH, THIS_WEEK }
@@ -63,6 +66,13 @@ class TripsViewModel @Inject constructor(
             tripsPerYearMonth  = computeTripsPerYearMonth(trips)
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UiState.Loading)
+
+    fun renameTrip(tripId: Long, newName: String) {
+        viewModelScope.launch {
+            repository.renameTrip(tripId, newName)
+            tripSyncService.updateTripNameInFirestore(tripId, newName)
+        }
+    }
 
     fun setFilter(filter: TripFilter) {
         _filter.value = filter

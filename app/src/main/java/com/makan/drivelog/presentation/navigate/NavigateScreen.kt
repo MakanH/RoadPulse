@@ -55,8 +55,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.makan.drivelog.data.service.SearchResult
 import com.makan.drivelog.domain.model.Route
 import com.makan.drivelog.domain.model.RouteStep
+import com.makan.drivelog.presentation.components.OnboardingPopup
 import com.makan.drivelog.presentation.map.LocationPermissionHandler
 import com.makan.drivelog.presentation.map.getMapStyleUrl
+import com.makan.drivelog.presentation.onboarding.OnboardingViewModel
 import com.makan.drivelog.presentation.profile.SettingsViewModel
 import com.makan.drivelog.presentation.theme.CoralPrimary
 import com.makan.drivelog.presentation.theme.TealPrimary
@@ -68,10 +70,12 @@ import java.util.Locale
 @Composable
 fun NavigateScreen(
     viewModel: NavigateViewModel = hiltViewModel(),
-    settingsViewModel: SettingsViewModel = hiltViewModel()
+    settingsViewModel: SettingsViewModel = hiltViewModel(),
+    onboardingVm: OnboardingViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val mapStylePref by settingsViewModel.prefs.mapStyle.collectAsStateWithLifecycle("dark")
+    val mapStylePref   by settingsViewModel.prefs.mapStyle.collectAsStateWithLifecycle("dark")
+    val onboardingSeen by onboardingVm.navigateSeen.collectAsStateWithLifecycle(true)
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(state.errorMessage) {
@@ -158,6 +162,14 @@ fun NavigateScreen(
                 hostState = snackbarHostState,
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
+            if (!onboardingSeen) {
+                OnboardingPopup(
+                    icon      = Icons.AutoMirrored.Filled.ArrowForward,
+                    title     = "Turn-by-turn navigation",
+                    body      = "Search for a destination and get driving directions. Your trip is automatically tracked while navigating, so it shows up in your history too.",
+                    onDismiss = onboardingVm::markNavigateSeen
+                )
+            }
         }
     }
 }
