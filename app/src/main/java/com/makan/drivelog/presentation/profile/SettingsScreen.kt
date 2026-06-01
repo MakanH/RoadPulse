@@ -1,5 +1,11 @@
 package com.makan.drivelog.presentation.profile
 
+import android.Manifest
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -20,17 +26,17 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.SaveAlt
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.Tune
@@ -48,6 +54,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,17 +62,34 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.makan.drivelog.presentation.theme.CoralPrimary
 import com.makan.drivelog.presentation.theme.TealPrimary
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxWidth as fmw
+
+private fun hasLocationPermission(context: Context) =
+    ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
+            PackageManager.PERMISSION_GRANTED
+
+private fun openAppSettings(context: Context) {
+    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+        data = Uri.fromParts("package", context.packageName, null)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    context.startActivity(intent)
+}
 
 @Composable
 fun SettingsScreen(
@@ -73,6 +97,21 @@ fun SettingsScreen(
     onNavigateToLicenses: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
+
+    // ── Lifecycle-aware location permission check ─────────────────────────────
+    var hasLocPerm by remember { mutableStateOf(hasLocationPermission(context)) }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                hasLocPerm = hasLocationPermission(context)
+            }
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
+
     val theme              by viewModel.prefs.theme.collectAsStateWithLifecycle("dark")
     val mapStyle           by viewModel.prefs.mapStyle.collectAsStateWithLifecycle("dark")
     val autoTracking       by viewModel.prefs.autoTracking.collectAsStateWithLifecycle(true)
@@ -139,17 +178,21 @@ fun SettingsScreen(
             item { CategoryHeader("Tracking") }
             item {
                 SettingsCard {
+                    if (!hasLocPerm) {
+                        PermissionWarningRow(onClick = { openAppSettings(context) })
+                        Div()
+                    }
                     ToggleRow(Icons.Filled.GpsFixed, "Auto-tracking",
                         "Automatically detect and record trips", autoTracking,
-                        viewModel::setAutoTracking)
+                        viewModel::setAutoTracking, enabled = hasLocPerm)
                     Div()
                     ChevronRow(Icons.Filled.Tune, "GPS accuracy", "Location precision vs battery",
                         if (gpsAccuracy == "high") "High" else "Balanced",
-                        onClick = viewModel::cycleGpsAccuracy)
+                        onClick = viewModel::cycleGpsAccuracy, enabled = hasLocPerm)
                     Div()
                     ChevronRow(Icons.Filled.Route, "Min trip distance",
                         "Discard trips shorter than", minTripDist,
-                        onClick = viewModel::cycleMinTripDistance)
+                        onClick = viewModel::cycleMinTripDistance, enabled = hasLocPerm)
                 }
             }
 
@@ -171,7 +214,7 @@ fun SettingsScreen(
                 SettingsCard {
                     ToggleRow(Icons.Filled.Notifications, "Tracking notification",
                         "Show persistent notification while tracking", bgNotif,
-                        viewModel::setBackgroundNotification)
+                        viewModel::setBackgroundNotification, enabled = hasLocPerm)
                     Div()
                     ToggleRow(Icons.Filled.Notifications, "Trip summary",
                         "Show notification with stats when a trip ends", tripSummaryNotif,
@@ -189,7 +232,7 @@ fun SettingsScreen(
                 SettingsCard {
                     ToggleRow(Icons.Filled.LocationOn, "Share live location",
                         "Allow friends to see your location in group drives", shareLoc,
-                        viewModel::setShareLiveLocation)
+                        viewModel::setShareLiveLocation, enabled = hasLocPerm)
                     Div()
                     ChevronRow(Icons.Filled.Person, "Profile visibility", "Who can see your profile",
                         if (profileVis == "everyone") "Everyone" else "Friends only",
@@ -279,11 +322,45 @@ private fun Div() {
         MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
 }
 
+// ── Permission warning ────────────────────────────────────────────────────────
+
+@Composable
+private fun PermissionWarningRow(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Filled.LocationOn, null, Modifier.size(14.dp), tint = CoralPrimary)
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = "Grant location permission to configure tracking",
+            fontSize = 12.sp,
+            color = CoralPrimary
+        )
+    }
+}
+
 // ── Row types ─────────────────────────────────────────────────────────────────
 
 @Composable
-private fun ToggleRow(icon: ImageVector, name: String, desc: String, checked: Boolean, onToggle: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+private fun ToggleRow(
+    icon: ImageVector,
+    name: String,
+    desc: String,
+    checked: Boolean,
+    onToggle: (Boolean) -> Unit,
+    enabled: Boolean = true
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .alpha(if (enabled) 1f else 0.5f)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Icon(icon, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
@@ -291,7 +368,11 @@ private fun ToggleRow(icon: ImageVector, name: String, desc: String, checked: Bo
             if (desc.isNotBlank()) Text(desc, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.width(16.dp))
-        Switch(checked, onToggle, colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = TealPrimary))
+        Switch(
+            checked = checked,
+            onCheckedChange = if (enabled) onToggle else null,
+            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = TealPrimary)
+        )
     }
 }
 
@@ -314,9 +395,22 @@ private fun ToggleRowComingSoon(icon: ImageVector, name: String, desc: String, c
 }
 
 @Composable
-private fun ChevronRow(icon: ImageVector, name: String, desc: String, currentValue: String, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().clickable { onClick() }.padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically) {
+private fun ChevronRow(
+    icon: ImageVector,
+    name: String,
+    desc: String,
+    currentValue: String,
+    onClick: () -> Unit,
+    enabled: Boolean = true
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .alpha(if (enabled) 1f else 0.5f)
+            .then(if (enabled) Modifier.clickable { onClick() } else Modifier)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Icon(icon, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
