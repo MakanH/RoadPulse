@@ -47,9 +47,18 @@ fun NavGraph(
         }
         composable(Screen.Navigate.route) { NavigateScreen() }
         composable(Screen.Board.route) {
-            LeaderboardScreen(onTripClick = { tripId ->
-                navController.navigate(Screen.TripDetail.createRoute(tripId))
-            })
+            LeaderboardScreen(
+                onTripClick = { tripId ->
+                    navController.navigate(Screen.TripDetail.createRoute(tripId))
+                },
+                onNavigateToFriends = {
+                    navController.navigate(Screen.Friends.route) {
+                        popUpTo(Screen.Map.route) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+            )
         }
         composable(Screen.Friends.route) { FriendsScreen() }
         composable(Screen.Groups.route) {

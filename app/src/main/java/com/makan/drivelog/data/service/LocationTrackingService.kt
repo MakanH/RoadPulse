@@ -39,6 +39,7 @@ class LocationTrackingService : Service() {
     @Inject lateinit var notificationHelper: NotificationHelper
     @Inject lateinit var geocodingService: NominatimGeocodingService
     @Inject lateinit var groupService: GroupService
+    @Inject lateinit var tripSyncService: TripSyncService
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -222,6 +223,7 @@ class LocationTrackingService : Service() {
         repository.updateTripStats(tripId, totalDistance, tripManager.averageSpeed(), tripManager.peakSpeed())
         repository.endTrip(tripId)
         geocodeAndNameTrip(tripId)
+        repository.getTripById(tripId)?.let { tripSyncService.syncTripToFirestore(it) }
     }
 
     private suspend fun geocodeAndNameTrip(tripId: Long) {
