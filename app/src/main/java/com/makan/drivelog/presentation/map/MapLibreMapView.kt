@@ -44,8 +44,24 @@ import org.maplibre.geojson.Point
 
 internal const val DARK_STYLE_URL  = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
 internal const val LIGHT_STYLE_URL = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
-private const val SOURCE_PREFIX = "dl-src-"
-private const val LAYER_PREFIX  = "dl-lyr-"
+private const val SOURCE_PREFIX    = "dl-src-"
+private const val LAYER_PREFIX     = "dl-lyr-"
+private const val HM_SRC_PREFIX    = "dl-hm-src-"
+private const val HM_LYR_PREFIX    = "dl-hm-lyr-"
+
+// Speed brackets: 0-30, 30-60, 60-90, 90-120, 120+ km/h
+private val HEATMAP_COLORS = arrayOf("#97C459", "#EF9F27", "#D85A30", "#E24B4A", "#7F77DD")
+
+private fun speedMsToBracket(speedMs: Double): Int {
+    val kmh = speedMs * 3.6
+    return when {
+        kmh < 30  -> 0
+        kmh < 60  -> 1
+        kmh < 90  -> 2
+        kmh < 120 -> 3
+        else      -> 4
+    }
+}
 
 val LocalMapStyleUrl = compositionLocalOf { DARK_STYLE_URL }
 
@@ -53,7 +69,10 @@ fun getMapStyleUrl(pref: String): String =
     if (pref == "light") LIGHT_STYLE_URL else DARK_STYLE_URL
 
 internal class MapDrawingState {
-    val drawnTripIds = mutableSetOf<Long>()
+    val drawnTripIds    = mutableSetOf<Long>()
+    val heatmapLayerIds = mutableSetOf<String>()
+    val heatmapSrcIds   = mutableSetOf<String>()
+    var mapLibre: MapLibreMap? = null
 }
 
 @Composable
@@ -62,10 +81,11 @@ fun MapLibreMapView(
     tripsWithPoints: List<TripWithPoints>,
     trackingState: TrackingState,
     monthLabel: String,
+    isHeatmapMode: Boolean = false,
     onTripClick: (Long) -> Unit
 ) {
-    val context = LocalContext.current
-    val mapStyleUrl = LocalMapStyleUrl.current
+    val context       = LocalContext.current
+    val mapStyleUrl   = LocalMapStyleUrl.current
     val mapStyleState = remember { mutableStateOf<Style?>(null) }
     val drawingState  = remember { MapDrawingState() }
 
@@ -77,6 +97,7 @@ fun MapLibreMapView(
         MapView(context).also { mv ->
             mv.onCreate(null)
             mv.getMapAsync { map: MapLibreMap ->
+                drawingState.mapLibre = map
                 map.uiSettings.isAttributionEnabled = false
                 map.uiSettings.isLogoEnabled = false
                 map.setStyle(mapStyleUrl) { style ->
@@ -85,12 +106,12 @@ fun MapLibreMapView(
                     redrawTrips(style, latestTrips.value, drawingState, latestActiveTripId.value)
                 }
                 map.addOnMapClickListener { latLng ->
-                    val screenPt = map.projection.toScreenLocation(latLng)
-                    val layerIds = drawingState.drawnTripIds.map { "$LAYER_PREFIX$it" }.toTypedArray()
-                    if (layerIds.isNotEmpty()) {
-                        val hits = map.queryRenderedFeatures(
-                            PointF(screenPt.x, screenPt.y), *layerIds
-                        )
+                    val screenPt   = map.projection.toScreenLocation(latLng)
+                    val flatLayers = drawingState.drawnTripIds.map { "$LAYER_PREFIX$it" }
+                    val hmLayers   = drawingState.heatmapLayerIds.toList()
+                    val allLayers  = (flatLayers + hmLayers).toTypedArray()
+                    if (allLayers.isNotEmpty()) {
+                        val hits = map.queryRenderedFeatures(PointF(screenPt.x, screenPt.y), *allLayers)
                         val tripId = hits.firstOrNull()
                             ?.properties()?.get("tripId")?.asString?.toLongOrNull()
                         if (tripId != null) {
@@ -105,9 +126,24 @@ fun MapLibreMapView(
     }
 
     val style = mapStyleState.value
-    LaunchedEffect(style, tripsWithPoints, trackingState.currentTrip?.id) {
+    LaunchedEffect(style, tripsWithPoints, trackingState.currentTrip?.id, isHeatmapMode) {
         style ?: return@LaunchedEffect
-        redrawTrips(style, tripsWithPoints, drawingState, trackingState.currentTrip?.id)
+        val activeTripId = trackingState.currentTrip?.id
+        if (isHeatmapMode) {
+            // Remove flat polylines
+            drawingState.drawnTripIds.toList().forEach { id ->
+                try { style.removeLayer("$LAYER_PREFIX$id") } catch (_: Exception) {}
+                try { style.removeSource("$SOURCE_PREFIX$id") } catch (_: Exception) {}
+            }
+            drawingState.drawnTripIds.clear()
+            // Clear stale heatmap and redraw
+            clearHeatmapLayers(style, drawingState)
+            drawHeatmap(style, tripsWithPoints, drawingState)
+        } else {
+            // Remove heatmap, restore flat polylines
+            clearHeatmapLayers(style, drawingState)
+            redrawTrips(style, tripsWithPoints, drawingState, activeTripId)
+        }
     }
 
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -139,11 +175,7 @@ fun MapLibreMapView(
 }
 
 @SuppressLint("MissingPermission")
-private fun setupLocationComponent(
-    map: MapLibreMap,
-    style: Style,
-    context: android.content.Context
-) {
+private fun setupLocationComponent(map: MapLibreMap, style: Style, context: android.content.Context) {
     try {
         val options = LocationComponentOptions.builder(context)
             .pulseEnabled(true)
@@ -184,11 +216,11 @@ internal fun redrawTrips(
 
     sorted.forEachIndexed { index, twp ->
         if (twp.points.size < 2) return@forEachIndexed
-        val trip    = twp.trip
+        val trip     = twp.trip
         val isActive = trip.id == activeTripId
-        val color   = when { isActive -> "#5DCAA5"; index % 2 == 0 -> "#378ADD"; else -> "#D85A30" }
-        val width   = if (isActive) 4f else 2f
-        val opacity = when { isActive -> 1f; index % 2 == 0 -> 0.5f; else -> 0.4f }
+        val color    = when { isActive -> "#5DCAA5"; index % 2 == 0 -> "#378ADD"; else -> "#D85A30" }
+        val width    = if (isActive) 4f else 2f
+        val opacity  = when { isActive -> 1f; index % 2 == 0 -> 0.5f; else -> 0.4f }
 
         val props = JsonObject().apply { addProperty("tripId", trip.id.toString()) }
         val pts   = twp.points.map { Point.fromLngLat(it.longitude, it.latitude) }
@@ -209,5 +241,65 @@ internal fun redrawTrips(
             )
             state.drawnTripIds.add(trip.id)
         } catch (e: Exception) { /* race condition guard */ }
+    }
+}
+
+private fun clearHeatmapLayers(style: Style, state: MapDrawingState) {
+    state.heatmapLayerIds.toList().forEach { id ->
+        try { style.removeLayer(id) } catch (_: Exception) {}
+    }
+    state.heatmapSrcIds.toList().forEach { id ->
+        try { style.removeSource(id) } catch (_: Exception) {}
+    }
+    state.heatmapLayerIds.clear()
+    state.heatmapSrcIds.clear()
+}
+
+private fun drawHeatmap(style: Style, trips: List<TripWithPoints>, state: MapDrawingState) {
+    trips.forEach { twp ->
+        if (twp.points.size < 2) return@forEach
+
+        // Sample large trips to cap rendering work
+        val points = if (twp.points.size > 500) {
+            val step = (twp.points.size / 500).coerceAtLeast(2)
+            twp.points.filterIndexed { i, _ -> i % step == 0 || i == twp.points.lastIndex }
+        } else twp.points
+
+        // Build one feature list per speed bracket
+        val bracketFeatures: Array<MutableList<Feature>> = Array(5) { mutableListOf() }
+        for (i in 0 until points.size - 1) {
+            val avgSpeedMs = (points[i].speed + points[i + 1].speed) / 2.0
+            val bracket = speedMsToBracket(avgSpeedMs)
+            val props = JsonObject().apply { addProperty("tripId", twp.trip.id.toString()) }
+            bracketFeatures[bracket].add(
+                Feature.fromGeometry(
+                    LineString.fromLngLats(listOf(
+                        Point.fromLngLat(points[i].longitude, points[i].latitude),
+                        Point.fromLngLat(points[i + 1].longitude, points[i + 1].latitude)
+                    )),
+                    props
+                )
+            )
+        }
+
+        // One source + layer per bracket that has any segments
+        bracketFeatures.forEachIndexed { bracketIdx, features ->
+            if (features.isEmpty()) return@forEachIndexed
+            val srcId = "$HM_SRC_PREFIX${twp.trip.id}-$bracketIdx"
+            val lyrId = "$HM_LYR_PREFIX${twp.trip.id}-$bracketIdx"
+            try {
+                style.addSource(GeoJsonSource(srcId, FeatureCollection.fromFeatures(features)))
+                style.addLayer(
+                    LineLayer(lyrId, srcId).withProperties(
+                        PropertyFactory.lineColor(HEATMAP_COLORS[bracketIdx]),
+                        PropertyFactory.lineWidth(3.5f),
+                        PropertyFactory.lineCap("round"),
+                        PropertyFactory.lineJoin("round")
+                    )
+                )
+                state.heatmapLayerIds.add(lyrId)
+                state.heatmapSrcIds.add(srcId)
+            } catch (_: Exception) {}
+        }
     }
 }

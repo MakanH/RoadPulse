@@ -58,6 +58,11 @@ class MapViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<UiState>(UiState.Loading)
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
+    private val _isHeatmapMode = MutableStateFlow(false)
+    val isHeatmapMode: StateFlow<Boolean> = _isHeatmapMode.asStateFlow()
+
+    fun toggleHeatmap() { _isHeatmapMode.value = !_isHeatmapMode.value }
+
     private val startOfMonth = getStartOfMonth()
     private val startOfDay = getStartOfDay()
     val monthLabel = SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(Date())

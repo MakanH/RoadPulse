@@ -2,6 +2,7 @@ package com.makan.drivelog.presentation.map
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -14,12 +15,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -29,6 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -44,6 +50,7 @@ import com.makan.drivelog.presentation.profile.SettingsViewModel
 import com.makan.drivelog.presentation.theme.TealDark
 import com.makan.drivelog.presentation.theme.TealPrimary
 import com.makan.drivelog.presentation.trips.TripRenameDialog
+import com.makan.drivelog.presentation.util.LocalUnitPrefs
 
 @Composable
 fun MapScreen(
@@ -54,6 +61,7 @@ fun MapScreen(
     onOpenGroupMap: ((groupId: String, sessionId: String) -> Unit)? = null
 ) {
     val uiState        by viewModel.uiState.collectAsStateWithLifecycle()
+    val isHeatmapMode  by viewModel.isHeatmapMode.collectAsStateWithLifecycle()
     val mapStylePref   by settingsViewModel.prefs.mapStyle.collectAsStateWithLifecycle("dark")
     val onboardingSeen by onboardingVm.mapSeen.collectAsStateWithLifecycle(true)
     val context = LocalContext.current
@@ -74,18 +82,12 @@ fun MapScreen(
         if (activeGroup != null && onOpenGroupMap != null) {
             ActiveGroupBanner(
                 group = activeGroup,
-                onClick = {
-                    onOpenGroupMap(activeGroup.id, activeGroup.activeSessionId!!)
-                }
+                onClick = { onOpenGroupMap(activeGroup.id, activeGroup.activeSessionId!!) }
             )
         }
 
         // ── Map area (55% of screen height) ──────────────────────────────────
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(0.55f)
-        ) {
+        Box(modifier = Modifier.fillMaxWidth().weight(0.55f)) {
             LocationPermissionHandler {
                 val state = uiState
                 if (state is MapViewModel.UiState.Success) {
@@ -95,7 +97,23 @@ fun MapScreen(
                             tripsWithPoints = state.monthlyTripsWithPoints,
                             trackingState   = state.trackingState,
                             monthLabel      = state.monthLabel,
+                            isHeatmapMode   = isHeatmapMode,
                             onTripClick     = onTripClick
+                        )
+                    }
+
+                    // Heatmap toggle pill — top-right
+                    HeatmapToggleButton(
+                        isHeatmapMode = isHeatmapMode,
+                        onToggle      = viewModel::toggleHeatmap,
+                        modifier      = Modifier.align(Alignment.TopEnd).padding(12.dp)
+                    )
+
+                    // Speed legend — bottom-left, only in heatmap mode
+                    if (isHeatmapMode) {
+                        HeatmapLegend(
+                            speedUnit = LocalUnitPrefs.current.speedUnit,
+                            modifier  = Modifier.align(Alignment.BottomStart).padding(12.dp)
                         )
                     }
                 } else {
@@ -104,12 +122,10 @@ fun MapScreen(
                             .fillMaxSize()
                             .background(MaterialTheme.colorScheme.background),
                         contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = TealPrimary)
-                    }
+                    ) { CircularProgressIndicator(color = TealPrimary) }
                 }
 
-                // FAB always on top of map area when permission is granted
+                // FAB — always visible when permission granted
                 val isTracking = (uiState as? MapViewModel.UiState.Success)
                     ?.trackingState?.isTracking ?: false
                 TrackingFab(
@@ -118,9 +134,7 @@ fun MapScreen(
                         if (isTracking) viewModel.stopTracking(context)
                         else viewModel.startTracking(context)
                     },
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(16.dp)
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
                 )
             }
         }
@@ -145,9 +159,7 @@ fun MapScreen(
                         .background(MaterialTheme.colorScheme.background)
                         .padding(16.dp),
                     contentAlignment = Alignment.Center
-                ) {
-                    Text(state.message, color = MaterialTheme.colorScheme.error)
-                }
+                ) { Text(state.message, color = MaterialTheme.colorScheme.error) }
             }
 
             is MapViewModel.UiState.Success -> {
@@ -180,7 +192,7 @@ fun MapScreen(
                         }
                         item {
                             RecentTripsList(
-                                trips = state.recentTrips,
+                                trips       = state.recentTrips,
                                 onTripClick = onTripClick,
                                 onLongPress = { renameTarget = it }
                             )
@@ -203,6 +215,102 @@ fun MapScreen(
     } // end Box
 }
 
+// ── Heatmap toggle pill ───────────────────────────────────────────────────────
+
+@Composable
+private fun HeatmapToggleButton(
+    isHeatmapMode: Boolean,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val bgColor = if (isHeatmapMode) TealPrimary
+                  else MaterialTheme.colorScheme.surface.copy(alpha = 0.88f)
+    val fgColor = if (isHeatmapMode) Color.White
+                  else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
+
+    Surface(
+        modifier      = modifier.clickable { onToggle() },
+        shape         = RoundedCornerShape(20.dp),
+        color         = bgColor,
+        shadowElevation = 4.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Filled.Layers,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = fgColor
+            )
+            Spacer(Modifier.width(4.dp))
+            Text(
+                text       = if (isHeatmapMode) "Heatmap" else "Routes",
+                fontSize   = 12.sp,
+                color      = fgColor,
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
+}
+
+// ── Speed legend ──────────────────────────────────────────────────────────────
+
+private val LEGEND_COLORS = listOf(
+    Color(0xFF97C459),
+    Color(0xFFEF9F27),
+    Color(0xFFD85A30),
+    Color(0xFFE24B4A),
+    Color(0xFF7F77DD)
+)
+
+@Composable
+private fun HeatmapLegend(speedUnit: String, modifier: Modifier = Modifier) {
+    val isMph = speedUnit == "mph"
+    val labels = if (isMph)
+        listOf("< 19", "19–37", "37–56", "56–75", "75+")
+    else
+        listOf("< 30", "30–60", "60–90", "90–120", "120+")
+    val unitLabel = if (isMph) "mph" else "km/h"
+
+    Surface(
+        modifier = modifier,
+        shape    = RoundedCornerShape(8.dp),
+        color    = Color.Black.copy(alpha = 0.58f)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            labels.forEachIndexed { i, label ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(LEGEND_COLORS[i])
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text     = label,
+                        fontSize = 10.sp,
+                        color    = Color.White.copy(alpha = 0.85f)
+                    )
+                }
+            }
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text     = unitLabel,
+                fontSize = 9.sp,
+                color    = Color.White.copy(alpha = 0.45f)
+            )
+        }
+    }
+}
+
+// ── Active group banner ───────────────────────────────────────────────────────
+
 @Composable
 private fun ActiveGroupBanner(group: Group, onClick: () -> Unit) {
     Row(
@@ -216,15 +324,15 @@ private fun ActiveGroupBanner(group: Group, onClick: () -> Unit) {
         Icon(
             Icons.Filled.Group,
             contentDescription = null,
-            tint = Color.White,
+            tint     = Color.White,
             modifier = Modifier.size(16.dp)
         )
         Spacer(Modifier.width(8.dp))
         Text(
             "Driving with ${group.name} · ${group.memberUids.size} members",
-            fontSize = 13.sp,
+            fontSize   = 13.sp,
             fontWeight = FontWeight.Medium,
-            color = Color.White
+            color      = Color.White
         )
     }
 }
