@@ -4,8 +4,10 @@ import android.content.Context
 import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.makan.drivelog.data.service.GroupService
 import com.makan.drivelog.data.service.LocationTrackingService
 import com.makan.drivelog.data.service.TrackingState
+import com.makan.drivelog.domain.model.Group
 import com.makan.drivelog.domain.model.LocationPoint
 import com.makan.drivelog.domain.model.Trip
 import com.makan.drivelog.domain.repository.TripRepository
@@ -34,7 +36,8 @@ data class TodayStats(
 
 @HiltViewModel
 class MapViewModel @Inject constructor(
-    private val repository: TripRepository
+    private val repository: TripRepository,
+    private val groupService: GroupService
 ) : ViewModel() {
 
     sealed class UiState {
@@ -44,7 +47,8 @@ class MapViewModel @Inject constructor(
             val recentTrips: List<Trip>,
             val todayStats: TodayStats,
             val trackingState: TrackingState,
-            val monthLabel: String
+            val monthLabel: String,
+            val activeGroup: Group? = null
         ) : UiState()
         data class Error(val message: String) : UiState()
     }
@@ -61,10 +65,18 @@ class MapViewModel @Inject constructor(
             combine(
                 repository.getTripsForMonth(startOfMonth),
                 repository.getAllTrips(),
-                LocationTrackingService.state
-            ) { monthly, all, tracking ->
-                Triple(monthly, all, tracking)
-            }.collect { (monthly, all, tracking) ->
+                LocationTrackingService.state,
+                groupService.getMyGroups()
+            ) { monthly, all, tracking, groups ->
+                listOf<Any>(monthly, all, tracking, groups)
+            }.collect { combined ->
+                @Suppress("UNCHECKED_CAST")
+                val monthly  = combined[0] as List<Trip>
+                @Suppress("UNCHECKED_CAST")
+                val all      = combined[1] as List<Trip>
+                val tracking = combined[2] as TrackingState
+                @Suppress("UNCHECKED_CAST")
+                val groups   = combined[3] as List<Group>
                 try {
                     val tripsWithPoints = coroutineScope {
                         monthly.map { trip ->
@@ -72,12 +84,14 @@ class MapViewModel @Inject constructor(
                         }.awaitAll()
                     }
                     val todayTrips = monthly.filter { it.startTime >= startOfDay }
+                    val activeGroup = groups.firstOrNull { it.activeSessionId != null }
                     _uiState.value = UiState.Success(
                         monthlyTripsWithPoints = tripsWithPoints,
                         recentTrips = all.take(10),
                         todayStats = computeTodayStats(todayTrips),
                         trackingState = tracking,
-                        monthLabel = monthLabel
+                        monthLabel = monthLabel,
+                        activeGroup = activeGroup
                     )
                 } catch (e: Exception) {
                     _uiState.value = UiState.Error(e.message ?: "Failed to load map data")

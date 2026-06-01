@@ -38,6 +38,7 @@ class LocationTrackingService : Service() {
     @Inject lateinit var tripManager: TripManager
     @Inject lateinit var notificationHelper: NotificationHelper
     @Inject lateinit var geocodingService: NominatimGeocodingService
+    @Inject lateinit var groupService: GroupService
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -54,6 +55,21 @@ class LocationTrackingService : Service() {
         private val _state = MutableStateFlow(TrackingState())
         val state: StateFlow<TrackingState> = _state.asStateFlow()
 
+        @Volatile var broadcastGroupId: String? = null
+            private set
+        @Volatile var broadcastSessionId: String? = null
+            private set
+
+        fun startGroupBroadcast(groupId: String, sessionId: String) {
+            broadcastGroupId = groupId
+            broadcastSessionId = sessionId
+        }
+
+        fun stopGroupBroadcast() {
+            broadcastGroupId = null
+            broadcastSessionId = null
+        }
+
         fun startIntent(context: Context) =
             Intent(context, LocationTrackingService::class.java).apply { action = ACTION_START }
 
@@ -68,6 +84,21 @@ class LocationTrackingService : Service() {
             notificationHelper.updateNotification(speedKmh)
             serviceScope.launch {
                 locationMutex.withLock { handleLocation(location, location.speed) }
+            }
+            val gid = broadcastGroupId
+            val sid = broadcastSessionId
+            if (gid != null && sid != null) {
+                serviceScope.launch {
+                    val pt = LocationPoint(
+                        id = 0L, tripId = 0L,
+                        latitude  = location.latitude,
+                        longitude = location.longitude,
+                        speed     = location.speed.toDouble(),
+                        timestamp = System.currentTimeMillis(),
+                        altitude  = location.altitude
+                    )
+                    groupService.pushMyLocation(gid, sid, pt, location.bearing)
+                }
             }
         }
     }
