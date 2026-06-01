@@ -60,7 +60,7 @@ class AuthViewModel @Inject constructor(
                     { _state.value = AuthUiState.Error("Password must contain a special character."); return@launch }
             }
             _state.value = AuthUiState.Loading
-            authService.signUpWithEmail(email, password).fold(
+            authService.signUpWithEmail(email, password, displayName).fold(
                 onSuccess = { user ->
                     runCatching { userProfileService.createOrUpdateProfile(user, displayName, tosAccepted = tosAccepted) }
                     _state.value = AuthUiState.Success
@@ -74,6 +74,11 @@ class AuthViewModel @Inject constructor(
         authService.getGoogleSignInIntent(activity)
 
     fun handleGoogleSignInResult(result: ActivityResult, tosAccepted: Boolean = false) {
+        // User dismissed the account picker — silently return to idle without showing an error
+        if (result.resultCode != Activity.RESULT_OK) {
+            _state.value = AuthUiState.Idle
+            return
+        }
         viewModelScope.launch {
             _state.value = AuthUiState.Loading
             authService.handleGoogleSignInResult(result.data).fold(
@@ -129,7 +134,6 @@ class AuthViewModel @Inject constructor(
             "Incorrect password."
         t.message?.contains("badly formatted", ignoreCase = true) == true ->
             "Please enter a valid email address."
-        t.message?.contains("canceled", ignoreCase = true) == true -> "Sign-in was cancelled."
         else -> t.message ?: "Authentication failed. Please try again."
     }
 }

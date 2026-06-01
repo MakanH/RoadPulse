@@ -9,6 +9,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.auth.UserProfileChangeRequest
 import com.makan.drivelog.R
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
@@ -21,12 +22,13 @@ import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
+private const val TAG = "AuthService"
+
 @Singleton
 class AuthService @Inject constructor(
     val auth: FirebaseAuth,
     @ApplicationContext private val context: Context
 ) {
-    // Tracks email verification confirmed via reload() — reset on sign-out
     private val _emailJustVerified = MutableStateFlow(false)
     val emailJustVerified: StateFlow<Boolean> = _emailJustVerified.asStateFlow()
 
@@ -47,25 +49,47 @@ class AuthService @Inject constructor(
     fun isGoogleUser(): Boolean =
         auth.currentUser?.providerData?.any { it.providerId == "google.com" } == true
 
-    suspend fun signUpWithEmail(email: String, password: String): Result<FirebaseUser> = runCatching {
-        val user = auth.createUserWithEmailAndPassword(email, password).await().user!!
-        try {
+    suspend fun signUpWithEmail(
+        email: String,
+        password: String,
+        displayName: String
+    ): Result<FirebaseUser> {
+        return try {
+            val result = auth.createUserWithEmailAndPassword(email, password).await()
+            val user = result.user ?: return Result.failure(Exception("User creation failed"))
+
+            // Set display name in Firebase Auth profile
+            val profileUpdates = UserProfileChangeRequest.Builder()
+                .setDisplayName(displayName)
+                .build()
+            user.updateProfile(profileUpdates).await()
+
+            // Send verification email — must be awaited so the Task completes before GC
             user.sendEmailVerification().await()
-            Log.d("AuthService", "Verification email sent to ${user.email}")
+            Log.d(TAG, "Verification email sent to ${user.email}")
+
+            Result.success(user)
         } catch (e: Exception) {
-            Log.e("AuthService", "sendEmailVerification failed for ${user.email}: ${e.message}", e)
+            Log.e(TAG, "signUpWithEmail failed: ${e.message}", e)
+            Result.failure(e)
         }
-        user
     }
 
     suspend fun signInWithEmail(email: String, password: String): Result<FirebaseUser> = runCatching {
         auth.signInWithEmailAndPassword(email, password).await().user!!
     }
 
-    suspend fun sendVerificationEmail(): Result<Unit> = runCatching {
-        val user = auth.currentUser ?: return@runCatching Unit
-        user.sendEmailVerification().await()
-        Log.d("AuthService", "Verification email re-sent to ${user.email}")
+    suspend fun sendVerificationEmail(): Result<Unit> {
+        return try {
+            val user = auth.currentUser
+                ?: return Result.failure(Exception("Not signed in"))
+            user.sendEmailVerification().await()
+            Log.d(TAG, "Verification email re-sent to ${user.email}")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "sendVerificationEmail failed: ${e.message}", e)
+            Result.failure(e)
+        }
     }
 
     suspend fun refreshUser(): Result<Boolean> = runCatching {

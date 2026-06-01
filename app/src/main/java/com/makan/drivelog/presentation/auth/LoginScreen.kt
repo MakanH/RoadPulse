@@ -36,8 +36,8 @@ import com.makan.drivelog.presentation.theme.TealPrimary
 import androidx.compose.ui.text.LinkAnnotation
 import kotlinx.coroutines.launch
 
-internal const val TERMS_URL   = "https://makan.github.io/drivelog/terms-of-service.html"
-internal const val PRIVACY_URL = "https://makan.github.io/drivelog/privacy-policy.html"
+internal const val TERMS_URL   = "https://makan.github.io/Drivelog/terms-of-service.html"
+internal const val PRIVACY_URL = "https://makan.github.io/Drivelog/privacy-policy.html"
 
 @Composable
 fun LoginScreen(
