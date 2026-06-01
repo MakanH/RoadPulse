@@ -4,7 +4,6 @@ import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -20,19 +19,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.makan.drivelog.presentation.theme.TealPrimary
+import androidx.compose.ui.text.LinkAnnotation
+
+private const val TERMS_URL   = "https://makan.github.io/drivelog/terms-of-service.html"
+private const val PRIVACY_URL = "https://makan.github.io/drivelog/privacy-policy.html"
 
 @Composable
 fun LoginScreen(
@@ -44,14 +47,17 @@ fun LoginScreen(
     val error = (authState as? AuthViewModel.AuthUiState.Error)?.message
     val activity = LocalContext.current as Activity
 
-    var email    by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+    var email       by remember { mutableStateOf("") }
+    var password    by remember { mutableStateOf("") }
+    var tosAccepted by remember { mutableStateOf(false) }
 
     val googleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        viewModel.handleGoogleSignInResult(result)
+        viewModel.handleGoogleSignInResult(result, tosAccepted = tosAccepted)
     }
+
+    val signInEnabled = !isLoading && email.isNotBlank() && password.isNotBlank() && tosAccepted
 
     Column(
         modifier = Modifier
@@ -63,14 +69,12 @@ fun LoginScreen(
     ) {
         Spacer(Modifier.height(64.dp))
 
-        // Logo
         Icon(Icons.Filled.DirectionsCar, contentDescription = null,
             modifier = Modifier.size(56.dp), tint = TealPrimary)
         Spacer(Modifier.height(8.dp))
         Text("DriveLog", fontSize = 24.sp, fontWeight = FontWeight.Medium, color = TealPrimary)
         Spacer(Modifier.height(40.dp))
 
-        // Email
         OutlinedTextField(
             value = email, onValueChange = { email = it; viewModel.clearError() },
             label = { Text("Email") },
@@ -82,7 +86,6 @@ fun LoginScreen(
         )
         Spacer(Modifier.height(12.dp))
 
-        // Password
         OutlinedTextField(
             value = password, onValueChange = { password = it; viewModel.clearError() },
             label = { Text("Password") },
@@ -93,24 +96,28 @@ fun LoginScreen(
             modifier = Modifier.fillMaxWidth(),
             colors = authFieldColors()
         )
+        Spacer(Modifier.height(12.dp))
+
+        TosCheckboxRow(checked = tosAccepted, onCheckedChange = { tosAccepted = it })
         Spacer(Modifier.height(8.dp))
 
-        // Error
         if (error != null) {
             Text(error, color = MaterialTheme.colorScheme.error,
                 fontSize = 13.sp, modifier = Modifier.fillMaxWidth())
             Spacer(Modifier.height(8.dp))
         }
 
-        // Sign in button
         Button(
-            onClick = { viewModel.signInWithEmail(email, password) },
-            enabled = !isLoading && email.isNotBlank() && password.isNotBlank(),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
+            onClick = { viewModel.signInWithEmail(email, password, tosAccepted = tosAccepted) },
+            enabled = signInEnabled,
+            modifier = Modifier.fillMaxWidth().height(50.dp),
             shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = TealPrimary)
+            colors = ButtonDefaults.buttonColors(
+                containerColor = TealPrimary,
+                disabledContainerColor = TealPrimary.copy(alpha = 0.38f),
+                contentColor = Color.White,
+                disabledContentColor = Color.White.copy(alpha = 0.6f)
+            )
         ) {
             if (isLoading) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
             else Text("Sign in", color = Color.White, fontWeight = FontWeight.Medium)
@@ -123,7 +130,6 @@ fun LoginScreen(
         }
         Spacer(Modifier.height(16.dp))
 
-        // "or" divider
         Row(verticalAlignment = Alignment.CenterVertically) {
             HorizontalDivider(modifier = Modifier.weight(1f),
                 color = MaterialTheme.colorScheme.outlineVariant)
@@ -133,48 +139,63 @@ fun LoginScreen(
         }
         Spacer(Modifier.height(16.dp))
 
-        // Google button
         OutlinedButton(
             onClick = { googleSignInLauncher.launch(viewModel.getGoogleSignInIntent(activity)) },
-            enabled = !isLoading,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
+            enabled = tosAccepted && !isLoading,
+            modifier = Modifier.fillMaxWidth().height(50.dp),
             shape = RoundedCornerShape(12.dp),
-            border = ButtonDefaults.outlinedButtonBorder(enabled = !isLoading)
+            border = ButtonDefaults.outlinedButtonBorder(enabled = tosAccepted && !isLoading),
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+            )
         ) {
             GoogleIcon()
             Spacer(Modifier.width(8.dp))
-            Text("Continue with Google",
-                color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
+            Text("Continue with Google", fontWeight = FontWeight.Medium)
         }
-        Spacer(Modifier.height(24.dp))
-        LegalLinks()
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(32.dp))
     }
 }
 
 @Composable
-internal fun LegalLinks() {
-    val uriHandler = LocalUriHandler.current
-    val privacyUrl = "https://makan.github.io/drivelog/privacy-policy.html"
-    val termsUrl   = "https://makan.github.io/drivelog/terms-of-service.html"
-    val muted = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-    Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
-        Text(
-            buildAnnotatedString {
-                withStyle(SpanStyle(color = muted, textDecoration = TextDecoration.Underline)) { append("Privacy Policy") }
-            },
-            fontSize = 11.sp,
-            modifier = Modifier.clickable { uriHandler.openUri(privacyUrl) }
+internal fun TosCheckboxRow(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    val secondary = MaterialTheme.colorScheme.onSurfaceVariant
+    val linkStyle = TextLinkStyles(
+        style = SpanStyle(
+            color = TealPrimary,
+            textDecoration = TextDecoration.Underline,
+            fontSize = 13.sp
         )
-        Text("  ·  ", fontSize = 11.sp, color = muted)
+    )
+    val annotated = buildAnnotatedString {
+        withStyle(SpanStyle(color = secondary, fontSize = 13.sp)) { append("I agree to the ") }
+        pushLink(LinkAnnotation.Url(url = TERMS_URL, styles = linkStyle))
+        append("Terms of Service")
+        pop()
+        withStyle(SpanStyle(color = secondary, fontSize = 13.sp)) { append(" and ") }
+        pushLink(LinkAnnotation.Url(url = PRIVACY_URL, styles = linkStyle))
+        append("Privacy Policy")
+        pop()
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top
+    ) {
+        Checkbox(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            modifier = Modifier.size(24.dp),
+            colors = CheckboxDefaults.colors(
+                checkedColor = TealPrimary,
+                uncheckedColor = MaterialTheme.colorScheme.outline
+            )
+        )
+        Spacer(Modifier.width(10.dp))
         Text(
-            buildAnnotatedString {
-                withStyle(SpanStyle(color = muted, textDecoration = TextDecoration.Underline)) { append("Terms of Service") }
-            },
-            fontSize = 11.sp,
-            modifier = Modifier.clickable { uriHandler.openUri(termsUrl) }
+            text = annotated,
+            modifier = Modifier.padding(top = 2.dp)
         )
     }
 }

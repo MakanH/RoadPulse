@@ -35,12 +35,12 @@ class AuthViewModel @Inject constructor(
     private val _snackbar = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val snackbar = _snackbar.asSharedFlow()
 
-    fun signInWithEmail(email: String, password: String) {
+    fun signInWithEmail(email: String, password: String, tosAccepted: Boolean = false) {
         viewModelScope.launch {
             _state.value = AuthUiState.Loading
             authService.signInWithEmail(email, password).fold(
                 onSuccess = { user ->
-                    runCatching { userProfileService.createOrUpdateProfile(user) }
+                    runCatching { userProfileService.createOrUpdateProfile(user, tosAccepted = tosAccepted) }
                     _state.value = AuthUiState.Success
                 },
                 onFailure = { _state.value = AuthUiState.Error(friendlyMessage(it)) }
@@ -48,7 +48,7 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun signUpWithEmail(email: String, password: String, displayName: String) {
+    fun signUpWithEmail(email: String, password: String, displayName: String, tosAccepted: Boolean = false) {
         viewModelScope.launch {
             val special = "!@#\$%^&*()_+-=[]{}|;':\",./<>?"
             when {
@@ -62,7 +62,7 @@ class AuthViewModel @Inject constructor(
             _state.value = AuthUiState.Loading
             authService.signUpWithEmail(email, password).fold(
                 onSuccess = { user ->
-                    runCatching { userProfileService.createOrUpdateProfile(user, displayName) }
+                    runCatching { userProfileService.createOrUpdateProfile(user, displayName, tosAccepted = tosAccepted) }
                     _state.value = AuthUiState.Success
                 },
                 onFailure = { _state.value = AuthUiState.Error(friendlyMessage(it)) }
@@ -73,12 +73,12 @@ class AuthViewModel @Inject constructor(
     fun getGoogleSignInIntent(activity: Activity): Intent =
         authService.getGoogleSignInIntent(activity)
 
-    fun handleGoogleSignInResult(result: ActivityResult) {
+    fun handleGoogleSignInResult(result: ActivityResult, tosAccepted: Boolean = false) {
         viewModelScope.launch {
             _state.value = AuthUiState.Loading
             authService.handleGoogleSignInResult(result.data).fold(
                 onSuccess = { user ->
-                    runCatching { userProfileService.createOrUpdateProfile(user) }
+                    runCatching { userProfileService.createOrUpdateProfile(user, tosAccepted = tosAccepted) }
                     _state.value = AuthUiState.Success
                 },
                 onFailure = { _state.value = AuthUiState.Error(friendlyMessage(it)) }

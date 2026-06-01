@@ -16,12 +16,16 @@ import javax.inject.Singleton
 class UserProfileService @Inject constructor(
     private val firestore: FirebaseFirestore
 ) {
-    suspend fun createOrUpdateProfile(user: FirebaseUser, displayNameOverride: String? = null) {
+    suspend fun createOrUpdateProfile(
+        user: FirebaseUser,
+        displayNameOverride: String? = null,
+        tosAccepted: Boolean = false
+    ) {
         val displayName = displayNameOverride?.takeIf { it.isNotBlank() }
             ?: user.displayName?.takeIf { it.isNotBlank() }
             ?: user.email?.substringBefore('@')
             ?: "Driver"
-        val data = hashMapOf(
+        val data = hashMapOf<String, Any?>(
             "uid"         to user.uid,
             "displayName" to displayName,
             "email"       to (user.email ?: ""),
@@ -29,6 +33,7 @@ class UserProfileService @Inject constructor(
             "createdAt"   to Timestamp.now(),
             "friendIds"   to emptyList<String>()
         )
+        if (tosAccepted) data["tosAcceptedAt"] = Timestamp.now()
         firestore.collection("users").document(user.uid)
             .set(data, SetOptions.merge()).await()
     }

@@ -39,18 +39,21 @@ fun SignUpScreen(
     var displayName by remember { mutableStateOf("") }
     var email       by remember { mutableStateOf("") }
     var password    by remember { mutableStateOf("") }
+    var tosAccepted by remember { mutableStateOf(false) }
 
-    val specialChars = "!@#\$%^&*()_+-=[]{}|;':\",./<>?"
-    val hasMin10     = password.length >= 10
-    val hasUpper     = password.any { it.isUpperCase() }
-    val hasSpecial   = password.any { it in specialChars }
+    val specialChars  = "!@#\$%^&*()_+-=[]{}|;':\",./<>?"
+    val hasMin10      = password.length >= 10
+    val hasUpper      = password.any { it.isUpperCase() }
+    val hasSpecial    = password.any { it in specialChars }
     val passwordValid = hasMin10 && hasUpper && hasSpecial
 
     val googleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        viewModel.handleGoogleSignInResult(result)
+        viewModel.handleGoogleSignInResult(result, tosAccepted = tosAccepted)
     }
+
+    val createEnabled = !isLoading && displayName.isNotBlank() && email.isNotBlank() && passwordValid && tosAccepted
 
     Column(
         modifier = Modifier
@@ -97,6 +100,9 @@ fun SignUpScreen(
             PasswordRule("At least one uppercase letter", hasUpper)
             PasswordRule("At least one special character (!@#\$…)", hasSpecial)
         }
+        Spacer(Modifier.height(12.dp))
+
+        TosCheckboxRow(checked = tosAccepted, onCheckedChange = { tosAccepted = it })
         Spacer(Modifier.height(8.dp))
 
         if (error != null) {
@@ -106,13 +112,16 @@ fun SignUpScreen(
         }
 
         Button(
-            onClick = { viewModel.signUpWithEmail(email, password, displayName) },
-            enabled = !isLoading && displayName.isNotBlank() && email.isNotBlank() && passwordValid,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
+            onClick = { viewModel.signUpWithEmail(email, password, displayName, tosAccepted = tosAccepted) },
+            enabled = createEnabled,
+            modifier = Modifier.fillMaxWidth().height(50.dp),
             shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = TealPrimary)
+            colors = ButtonDefaults.buttonColors(
+                containerColor = TealPrimary,
+                disabledContainerColor = TealPrimary.copy(alpha = 0.38f),
+                contentColor = Color.White,
+                disabledContentColor = Color.White.copy(alpha = 0.6f)
+            )
         ) {
             if (isLoading) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
             else Text("Create account", color = Color.White, fontWeight = FontWeight.Medium)
@@ -134,19 +143,19 @@ fun SignUpScreen(
 
         OutlinedButton(
             onClick = { googleSignInLauncher.launch(viewModel.getGoogleSignInIntent(activity)) },
-            enabled = !isLoading,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-            shape = RoundedCornerShape(12.dp)
+            enabled = tosAccepted && !isLoading,
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+            )
         ) {
             GoogleIcon()
             Spacer(Modifier.width(8.dp))
-            Text("Continue with Google", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
+            Text("Continue with Google", fontWeight = FontWeight.Medium)
         }
-        Spacer(Modifier.height(24.dp))
-        LegalLinks()
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(32.dp))
     }
 }
 
