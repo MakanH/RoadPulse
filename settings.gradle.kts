@@ -22,5 +22,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "DriveLog"
+rootProject.name = "RoadPulse"
 include(":app")

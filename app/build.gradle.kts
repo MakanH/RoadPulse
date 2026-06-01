@@ -9,7 +9,7 @@ plugins {
 }
 
 android {
-    namespace = "com.makan.drivelog"
+    namespace = "com.makan.roadpulse"
     compileSdk {
         version = release(36) {
             minorApiLevel = 1
@@ -17,7 +17,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.makan.drivelog"
+        applicationId = "com.makan.roadpulse"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
