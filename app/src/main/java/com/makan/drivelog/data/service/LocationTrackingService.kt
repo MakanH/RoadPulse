@@ -1,8 +1,10 @@
 package com.makan.drivelog.data.service
 
+import android.Manifest
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.location.Location
 import android.os.Build
@@ -78,8 +80,12 @@ class LocationTrackingService : Service() {
             Intent(context, LocationTrackingService::class.java).apply { action = ACTION_STOP }
     }
 
+    private fun hasLocationPermission() =
+        checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
+            if (!hasLocationPermission()) { endTracking(); return }
             val location = result.lastLocation ?: return
             val speedKmh = location.speed * 3.6f
             notificationHelper.updateNotification(speedKmh)

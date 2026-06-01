@@ -35,6 +35,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -71,12 +73,17 @@ fun GroupsScreen(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     var showSheet by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(createResult) {
         if (createResult?.isSuccess == true) {
             scope.launch { sheetState.hide() }.invokeOnCompletion { showSheet = false }
             viewModel.clearCreateResult()
         }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.errorEvent.collect { msg -> snackbarHostState.showSnackbar(msg) }
     }
 
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
@@ -124,6 +131,10 @@ fun GroupsScreen(
         ) {
             Icon(Icons.Filled.Add, contentDescription = "Create group")
         }
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
     }
 
     if (showSheet) {

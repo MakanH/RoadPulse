@@ -260,6 +260,7 @@ private val segmentColors = listOf(Color(0xFF5DCAA5), Color(0xFF378ADD), Color(0
 
 @Composable
 private fun SegmentsBreakdown(segments: List<TripSegment>) {
+    val units = LocalUnitPrefs.current
     Column {
         Text("Route segments", fontSize = 13.sp, fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 8.dp))
@@ -279,9 +280,9 @@ private fun SegmentsBreakdown(segments: List<TripSegment>) {
                         Spacer(Modifier.width(10.dp))
                         Text(seg.label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.weight(1f))
-                        Text("%.1f km".format(seg.distanceKm), fontSize = 12.sp,
+                        Text(units.formatDistanceKm(seg.distanceKm), fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(end = 12.dp))
-                        Text("${seg.avgSpeedKmh} km/h", fontSize = 12.sp, color = color)
+                        Text(units.formatSpeedKmh(seg.avgSpeedKmh), fontSize = 12.sp, color = color)
                     }
                 }
             }

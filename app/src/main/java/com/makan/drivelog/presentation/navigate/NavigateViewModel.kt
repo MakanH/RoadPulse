@@ -143,6 +143,8 @@ class NavigateViewModel @Inject constructor(
         _state.update { NavigateUiState(userLat = it.userLat, userLon = it.userLon) }
     }
 
+    fun clearError() { _state.update { it.copy(errorMessage = null) } }
+
     // ── Step advancement ──────────────────────────────────────────────────────
 
     private fun advanceStepIfNeeded(lat: Double, lon: Double) {

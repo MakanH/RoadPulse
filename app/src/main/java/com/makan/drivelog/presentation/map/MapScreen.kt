@@ -125,23 +125,40 @@ fun MapScreen(
             }
 
             is MapViewModel.UiState.Success -> {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(0.45f)
-                        .background(MaterialTheme.colorScheme.background),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp)
-                ) {
-                    item {
-                        StatCardsRow(stats = state.todayStats)
-                        Spacer(Modifier.height(16.dp))
-                    }
-                    item {
-                        RecentTripsList(
-                            trips = state.recentTrips,
-                            onTripClick = onTripClick
+                if (state.monthlyTripsWithPoints.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(0.45f)
+                            .background(MaterialTheme.colorScheme.background)
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "No trips yet this month — start your first drive!",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium
                         )
-                        Spacer(Modifier.height(16.dp))
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(0.45f)
+                            .background(MaterialTheme.colorScheme.background),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp)
+                    ) {
+                        item {
+                            StatCardsRow(stats = state.todayStats)
+                            Spacer(Modifier.height(16.dp))
+                        }
+                        item {
+                            RecentTripsList(
+                                trips = state.recentTrips,
+                                onTripClick = onTripClick
+                            )
+                            Spacer(Modifier.height(16.dp))
+                        }
                     }
                 }
             }

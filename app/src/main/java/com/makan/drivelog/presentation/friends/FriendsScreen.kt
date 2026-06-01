@@ -35,12 +35,16 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,6 +67,15 @@ fun FriendsScreen(viewModel: FriendsViewModel = hiltViewModel()) {
     val query       by viewModel.searchQuery.collectAsStateWithLifecycle()
     val results     by viewModel.searchResults.collectAsStateWithLifecycle()
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        viewModel.errorEvent.collect { msg ->
+            snackbarHostState.showSnackbar(msg)
+        }
+    }
+
     var removeFriendTarget by remember { mutableStateOf<UserProfile?>(null) }
 
     removeFriendTarget?.let { friend ->
@@ -82,6 +95,7 @@ fun FriendsScreen(viewModel: FriendsViewModel = hiltViewModel()) {
         )
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -253,7 +267,12 @@ fun FriendsScreen(viewModel: FriendsViewModel = hiltViewModel()) {
                 }
             }
         }
-    }
+    } // end LazyColumn
+    SnackbarHost(
+        hostState = snackbarHostState,
+        modifier = Modifier.align(Alignment.BottomCenter)
+    )
+    } // end Box
 }
 
 // ── Row composables ────────────────────────────────────────────────────────────
