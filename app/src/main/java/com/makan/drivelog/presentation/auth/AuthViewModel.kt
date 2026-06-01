@@ -8,8 +8,10 @@ import androidx.lifecycle.viewModelScope
 import com.makan.drivelog.data.service.AuthService
 import com.makan.drivelog.data.service.UserProfileService
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -29,6 +31,9 @@ class AuthViewModel @Inject constructor(
 
     private val _state = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
     val state: StateFlow<AuthUiState> = _state.asStateFlow()
+
+    private val _snackbar = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val snackbar = _snackbar.asSharedFlow()
 
     fun signInWithEmail(email: String, password: String) {
         viewModelScope.launch {
@@ -79,6 +84,34 @@ class AuthViewModel @Inject constructor(
                 onFailure = { _state.value = AuthUiState.Error(friendlyMessage(it)) }
             )
         }
+    }
+
+    fun checkEmailVerification() {
+        viewModelScope.launch {
+            _state.value = AuthUiState.Loading
+            authService.refreshUser().fold(
+                onSuccess = { verified ->
+                    _state.value = if (verified) AuthUiState.Success
+                    else AuthUiState.Error(
+                        "Email not verified yet. Please check your inbox and click the verification link."
+                    )
+                },
+                onFailure = { _state.value = AuthUiState.Error(friendlyMessage(it)) }
+            )
+        }
+    }
+
+    fun sendVerificationEmail() {
+        viewModelScope.launch {
+            authService.sendVerificationEmail()
+            _snackbar.tryEmit("Verification email sent")
+            clearError()
+        }
+    }
+
+    fun signOut() {
+        authService.signOut()
+        _state.value = AuthUiState.Idle
     }
 
     fun clearError() { if (_state.value is AuthUiState.Error) _state.value = AuthUiState.Idle }
