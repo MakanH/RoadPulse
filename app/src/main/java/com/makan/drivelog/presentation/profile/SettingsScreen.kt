@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.GpsFixed
@@ -25,14 +26,10 @@ import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -54,7 +51,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.makan.drivelog.presentation.theme.CoralPrimary
 import com.makan.drivelog.presentation.theme.TealPrimary
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
@@ -156,20 +152,20 @@ fun SettingsScreen(
                         onToggle = viewModel::setAutoTracking
                     )
                     RowDivider()
-                    SegmentedRow(
-                        icon = Icons.Filled.Speed,
-                        name = "Speed unit",
-                        options = listOf("km/h", "mph"),
-                        selected = settings.speedUnit,
-                        onSelect = viewModel::setSpeedUnit
+                    ChevronRow(
+                        icon         = Icons.Filled.Speed,
+                        name         = "Speed unit",
+                        description  = "Display speed in",
+                        currentValue = settings.speedUnit,
+                        onClick      = viewModel::cycleSpeedUnit
                     )
                     RowDivider()
-                    SegmentedRow(
-                        icon = Icons.Filled.Straighten,
-                        name = "Distance unit",
-                        options = listOf("km", "miles"),
-                        selected = settings.distanceUnit,
-                        onSelect = viewModel::setDistanceUnit
+                    ChevronRow(
+                        icon         = Icons.Filled.Straighten,
+                        name         = "Distance unit",
+                        description  = "Display distance in",
+                        currentValue = settings.distanceUnit,
+                        onClick      = viewModel::cycleDistanceUnit
                     )
                     RowDivider()
                     ToggleRow(
@@ -271,34 +267,33 @@ private fun ToggleRow(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SegmentedRow(
+private fun ChevronRow(
     icon: ImageVector,
     name: String,
-    options: List<String>,
-    selected: String,
-    onSelect: (String) -> Unit
+    description: String,
+    currentValue: String,
+    onClick: () -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.width(12.dp))
-        Text(name, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f))
-        SingleChoiceSegmentedButtonRow {
-            options.forEachIndexed { i, option ->
-                SegmentedButton(
-                    selected = option == selected,
-                    onClick  = { onSelect(option) },
-                    shape    = SegmentedButtonDefaults.itemShape(index = i, count = options.size),
-                    label    = { Text(option, fontSize = 12.sp) }
-                )
-            }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(name, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+            Text(description, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        Text(currentValue, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TealPrimary)
+        Spacer(Modifier.width(4.dp))
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null,
+            modifier = Modifier.size(18.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
