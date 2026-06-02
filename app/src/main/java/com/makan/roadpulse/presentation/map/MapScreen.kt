@@ -258,20 +258,22 @@ private fun HeatmapToggleButton(
 // ── Speed legend ──────────────────────────────────────────────────────────────
 
 private val LEGEND_COLORS = listOf(
-    Color(0xFF97C459),
-    Color(0xFFEF9F27),
-    Color(0xFFD85A30),
-    Color(0xFFE24B4A),
-    Color(0xFF7F77DD)
+    Color(0xFF97C459), // green     0–30
+    Color(0xFFEF9F27), // amber    30–60
+    Color(0xFFD85A30), // orange   60–90
+    Color(0xFFE24B4A), // red      90–120
+    Color(0xFFA32D2D), // deep red 120–150
+    Color(0xFF7F77DD), // purple   150–180
+    Color(0xFFD4537E)  // pink     180+
 )
 
 @Composable
 private fun HeatmapLegend(speedUnit: String, modifier: Modifier = Modifier) {
     val isMph = speedUnit == "mph"
     val labels = if (isMph)
-        listOf("< 19", "19–37", "37–56", "56–75", "75+")
+        listOf("< 19", "19–37", "37–56", "56–75", "75–93", "93–112", "112+")
     else
-        listOf("< 30", "30–60", "60–90", "90–120", "120+")
+        listOf("< 30", "30–60", "60–90", "90–120", "120–150", "150–180", "180+")
     val unitLabel = if (isMph) "mph" else "km/h"
 
     Surface(

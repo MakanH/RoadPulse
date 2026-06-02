@@ -49,8 +49,16 @@ private const val LAYER_PREFIX     = "dl-lyr-"
 private const val HM_SRC_PREFIX    = "dl-hm-src-"
 private const val HM_LYR_PREFIX    = "dl-hm-lyr-"
 
-// Speed brackets: 0-30, 30-60, 60-90, 90-120, 120+ km/h
-private val HEATMAP_COLORS = arrayOf("#97C459", "#EF9F27", "#D85A30", "#E24B4A", "#7F77DD")
+// Speed brackets: 0-30, 30-60, 60-90, 90-120, 120-150, 150-180, 180+ km/h
+private val HEATMAP_COLORS = arrayOf(
+    "#97C459", // green    0–30
+    "#EF9F27", // amber   30–60
+    "#D85A30", // orange  60–90
+    "#E24B4A", // red     90–120
+    "#A32D2D", // deep red 120–150
+    "#7F77DD", // purple  150–180
+    "#D4537E"  // pink    180+
+)
 
 private fun speedMsToBracket(speedMs: Double): Int {
     val kmh = speedMs * 3.6
@@ -59,7 +67,9 @@ private fun speedMsToBracket(speedMs: Double): Int {
         kmh < 60  -> 1
         kmh < 90  -> 2
         kmh < 120 -> 3
-        else      -> 4
+        kmh < 150 -> 4
+        kmh < 180 -> 5
+        else      -> 6
     }
 }
 
@@ -266,7 +276,7 @@ private fun drawHeatmap(style: Style, trips: List<TripWithPoints>, state: MapDra
         } else twp.points
 
         // Build one feature list per speed bracket
-        val bracketFeatures: Array<MutableList<Feature>> = Array(5) { mutableListOf() }
+        val bracketFeatures: Array<MutableList<Feature>> = Array(7) { mutableListOf() }
         for (i in 0 until points.size - 1) {
             val avgSpeedMs = (points[i].speed + points[i + 1].speed) / 2.0
             val bracket = speedMsToBracket(avgSpeedMs)
