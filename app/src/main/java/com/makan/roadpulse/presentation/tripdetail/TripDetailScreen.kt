@@ -294,14 +294,18 @@ private fun DetailStatCard(
         shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
-        Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            modifier = Modifier.padding(10.dp).fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             Text(text = label, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             Spacer(Modifier.height(4.dp))
             Text(text = value, fontSize = 18.sp, fontWeight = FontWeight.W500, color = valueColor,
-                textAlign = TextAlign.Center)
+                textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             Text(text = unit, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center)
+                textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         }
     }
 }
@@ -333,8 +337,13 @@ private fun SegmentsBreakdown(segments: List<TripSegment>) {
                         Text(seg.label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.weight(1f))
                         Text(units.formatDistanceKm(seg.distanceKm), fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(end = 12.dp))
-                        Text(units.formatSpeedKmh(seg.avgSpeedKmh), fontSize = 12.sp, color = color)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.End,
+                            modifier = Modifier.width(70.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(units.formatSpeedKmh(seg.avgSpeedKmh), fontSize = 12.sp, color = color,
+                            textAlign = TextAlign.End,
+                            modifier = Modifier.width(70.dp))
                     }
                 }
             }
