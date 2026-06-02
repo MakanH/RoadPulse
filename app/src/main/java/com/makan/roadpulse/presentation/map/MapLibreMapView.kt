@@ -27,6 +27,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.runtime.compositionLocalOf
 import com.google.gson.JsonObject
 import com.makan.roadpulse.data.service.TrackingState
+import org.maplibre.android.camera.CameraUpdateFactory
+import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.location.LocationComponentActivationOptions
 import org.maplibre.android.location.LocationComponentOptions
 import org.maplibre.android.location.modes.CameraMode
@@ -92,7 +94,9 @@ fun MapLibreMapView(
     trackingState: TrackingState,
     monthLabel: String,
     isHeatmapMode: Boolean = false,
-    onTripClick: (Long) -> Unit
+    onTripClick: (Long) -> Unit,
+    recenterTrigger: Int = 0,
+    onRecenterFailed: () -> Unit = {}
 ) {
     val context       = LocalContext.current
     val mapStyleUrl   = LocalMapStyleUrl.current
@@ -154,6 +158,17 @@ fun MapLibreMapView(
             clearHeatmapLayers(style, drawingState)
             redrawTrips(style, tripsWithPoints, drawingState, activeTripId)
         }
+    }
+
+    LaunchedEffect(recenterTrigger) {
+        if (recenterTrigger == 0) return@LaunchedEffect
+        val map = drawingState.mapLibre ?: run { onRecenterFailed(); return@LaunchedEffect }
+        val loc = map.locationComponent.lastKnownLocation
+            ?: run { onRecenterFailed(); return@LaunchedEffect }
+        map.animateCamera(
+            CameraUpdateFactory.newLatLngZoom(LatLng(loc.latitude, loc.longitude), 15.0),
+            500
+        )
     }
 
     val lifecycle = LocalLifecycleOwner.current.lifecycle

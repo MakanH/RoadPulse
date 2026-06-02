@@ -21,14 +21,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -163,6 +166,31 @@ fun RecentTripsList(
     }
 }
 
+
+// ── Recenter FAB ─────────────────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RecenterFab(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.size(40.dp),
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
+        shadowElevation = 4.dp,
+        tonalElevation = 2.dp
+    ) {
+        Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = Icons.Filled.GpsFixed,
+                contentDescription = "Recenter on my location",
+                tint = TealPrimary,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
 
 // ── Tracking FAB ──────────────────────────────────────────────────────────────
 

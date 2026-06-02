@@ -24,6 +24,8 @@ import androidx.compose.material.icons.filled.Map
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,7 +33,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -66,6 +70,9 @@ fun MapScreen(
     val onboardingSeen by onboardingVm.mapSeen.collectAsStateWithLifecycle(true)
     val context = LocalContext.current
     var renameTarget by remember { mutableStateOf<Trip?>(null) }
+    var recenterTrigger by remember { mutableStateOf(0) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     renameTarget?.let { trip ->
         TripRenameDialog(
@@ -93,12 +100,16 @@ fun MapScreen(
                 if (state is MapViewModel.UiState.Success) {
                     CompositionLocalProvider(LocalMapStyleUrl provides getMapStyleUrl(mapStylePref)) {
                         MapLibreMapView(
-                            modifier        = Modifier.fillMaxSize(),
-                            tripsWithPoints = state.monthlyTripsWithPoints,
-                            trackingState   = state.trackingState,
-                            monthLabel      = state.monthLabel,
-                            isHeatmapMode   = isHeatmapMode,
-                            onTripClick     = onTripClick
+                            modifier          = Modifier.fillMaxSize(),
+                            tripsWithPoints   = state.monthlyTripsWithPoints,
+                            trackingState     = state.trackingState,
+                            monthLabel        = state.monthLabel,
+                            isHeatmapMode     = isHeatmapMode,
+                            onTripClick       = onTripClick,
+                            recenterTrigger   = recenterTrigger,
+                            onRecenterFailed  = {
+                                scope.launch { snackbarHostState.showSnackbar("Location unavailable") }
+                            }
                         )
                     }
 
@@ -109,12 +120,16 @@ fun MapScreen(
                         modifier      = Modifier.align(Alignment.TopEnd).padding(12.dp)
                     )
 
-                    // Speed legend — bottom-left, only in heatmap mode
-                    if (isHeatmapMode) {
-                        HeatmapLegend(
-                            speedUnit = LocalUnitPrefs.current.speedUnit,
-                            modifier  = Modifier.align(Alignment.BottomStart).padding(12.dp)
-                        )
+                    // Bottom-left: speed legend (heatmap mode) stacked above recenter FAB
+                    Column(
+                        modifier = Modifier.align(Alignment.BottomStart).padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalAlignment = Alignment.Start
+                    ) {
+                        if (isHeatmapMode) {
+                            HeatmapLegend(speedUnit = LocalUnitPrefs.current.speedUnit)
+                        }
+                        RecenterFab(onClick = { recenterTrigger++ })
                     }
                 } else {
                     Box(
@@ -212,6 +227,10 @@ fun MapScreen(
             onDismiss = onboardingVm::markMapSeen
         )
     }
+    SnackbarHost(
+        hostState = snackbarHostState,
+        modifier  = Modifier.align(Alignment.BottomCenter)
+    )
     } // end Box
 }
 
