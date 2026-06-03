@@ -160,6 +160,18 @@ fun MapLibreMapView(
         }
     }
 
+    // Reload map style reactively when the preference changes
+    LaunchedEffect(mapStyleUrl) {
+        val map = drawingState.mapLibre ?: return@LaunchedEffect
+        map.setStyle(mapStyleUrl) { style ->
+            drawingState.drawnTripIds.clear()
+            drawingState.heatmapLayerIds.clear()
+            drawingState.heatmapSrcIds.clear()
+            mapStyleState.value = style
+            setupLocationComponent(map, style, context)
+        }
+    }
+
     LaunchedEffect(recenterTrigger) {
         if (recenterTrigger == 0) return@LaunchedEffect
         val map = drawingState.mapLibre ?: run { onRecenterFailed(); return@LaunchedEffect }

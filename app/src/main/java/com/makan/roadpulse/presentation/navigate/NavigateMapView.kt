@@ -40,7 +40,8 @@ fun NavigateMapView(
     modifier: Modifier = Modifier,
     route: Route?,
     isNavigating: Boolean,
-    styleUrl: String = DARK_STYLE_URL
+    styleUrl: String = DARK_STYLE_URL,
+    recenterTrigger: Int = 0
 ) {
     val context = LocalContext.current
     val mapRef   = remember { mutableStateOf<MapLibreMap?>(null) }
@@ -94,6 +95,28 @@ fun NavigateMapView(
                 if (style != null && r != null) fitCamera(map, r)
             }
         } catch (_: Exception) {}
+    }
+
+    // Animate camera to user's current location on FAB tap
+    LaunchedEffect(recenterTrigger) {
+        if (recenterTrigger == 0) return@LaunchedEffect
+        val map = mapRef.value ?: return@LaunchedEffect
+        try {
+            val loc = map.locationComponent.lastKnownLocation ?: return@LaunchedEffect
+            map.animateCamera(
+                CameraUpdateFactory.newLatLngZoom(MapLatLng(loc.latitude, loc.longitude), 15.0),
+                500
+            )
+        } catch (_: Exception) {}
+    }
+
+    // Reload map style reactively when the preference changes
+    LaunchedEffect(styleUrl) {
+        val map = mapRef.value ?: return@LaunchedEffect
+        map.setStyle(styleUrl) { style ->
+            styleRef.value = style
+            setupLocationComponent(map, style, context)
+        }
     }
 
     val lifecycle = LocalLifecycleOwner.current.lifecycle

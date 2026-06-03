@@ -40,6 +40,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,6 +58,7 @@ import com.makan.roadpulse.domain.model.Route
 import com.makan.roadpulse.domain.model.RouteStep
 import com.makan.roadpulse.presentation.components.OnboardingPopup
 import com.makan.roadpulse.presentation.map.LocationPermissionHandler
+import com.makan.roadpulse.presentation.map.RecenterFab
 import com.makan.roadpulse.presentation.map.getMapStyleUrl
 import com.makan.roadpulse.presentation.onboarding.OnboardingViewModel
 import com.makan.roadpulse.presentation.profile.SettingsViewModel
@@ -76,7 +78,8 @@ fun NavigateScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val mapStylePref   by settingsViewModel.prefs.mapStyle.collectAsStateWithLifecycle("dark")
     val onboardingSeen by onboardingVm.navigateSeen.collectAsStateWithLifecycle(true)
-    val snackbarHostState = remember { SnackbarHostState() }
+    val snackbarHostState  = remember { SnackbarHostState() }
+    val recenterTrigger    = remember { mutableStateOf(0) }
 
     LaunchedEffect(state.errorMessage) {
         val msg = state.errorMessage ?: return@LaunchedEffect
@@ -89,10 +92,11 @@ fun NavigateScreen(
 
             // Always-visible map
             NavigateMapView(
-                modifier     = Modifier.fillMaxSize(),
-                route        = state.route,
-                isNavigating = state.navState == NavState.NAVIGATING,
-                styleUrl     = getMapStyleUrl(mapStylePref)
+                modifier        = Modifier.fillMaxSize(),
+                route           = state.route,
+                isNavigating    = state.navState == NavState.NAVIGATING,
+                styleUrl        = getMapStyleUrl(mapStylePref),
+                recenterTrigger = recenterTrigger.value
             )
 
             // Top overlays
@@ -158,6 +162,16 @@ fun NavigateScreen(
                 }
                 else -> {}
             }
+            // Recenter FAB — bottom-left, hidden during active navigation and route preview
+            if (state.navState != NavState.NAVIGATING && state.navState != NavState.ROUTE_PREVIEW) {
+                RecenterFab(
+                    onClick  = { recenterTrigger.value++ },
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(start = 16.dp, bottom = 16.dp)
+                )
+            }
+
             SnackbarHost(
                 hostState = snackbarHostState,
                 modifier = Modifier.align(Alignment.BottomCenter)

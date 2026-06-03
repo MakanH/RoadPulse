@@ -130,6 +130,16 @@ fun GroupMapScreen(
         }
     }
 
+    // Reload map style reactively when the preference changes
+    LaunchedEffect(mapStylePref) {
+        val map = mapRef.value ?: return@LaunchedEffect
+        val styleUrl = getMapStyleUrl(mapStylePref)
+        map.setStyle(styleUrl) { style ->
+            setupMemberLayers(style)
+            mapStyleState.value = style
+        }
+    }
+
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(lifecycle) {
         val observer = LifecycleEventObserver { _, event ->

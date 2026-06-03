@@ -75,6 +75,14 @@ fun TripDetailMapView(
         updateScrubDot(style, points, scrubIndex)
     }
 
+    // Reload map style reactively when the preference changes
+    LaunchedEffect(styleUrl) {
+        val map = mapRef.value ?: return@LaunchedEffect
+        map.setStyle(styleUrl) { style ->
+            styleRef.value = style
+        }
+    }
+
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
