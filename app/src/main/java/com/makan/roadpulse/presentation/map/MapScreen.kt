@@ -74,6 +74,13 @@ fun MapScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
+    // Cache the last successful state so the UI never flashes blank during a brief
+    // Loading re-emission (e.g. after ViewModel recreation on a backstack re-entry).
+    var lastSuccessState by remember { mutableStateOf<MapViewModel.UiState.Success?>(null) }
+    val successState = (uiState as? MapViewModel.UiState.Success)
+        ?.also { lastSuccessState = it }
+        ?: lastSuccessState
+
     renameTarget?.let { trip ->
         TripRenameDialog(
             currentName = trip.name,
@@ -85,7 +92,7 @@ fun MapScreen(
     Box(Modifier.fillMaxSize()) {
     Column(modifier = Modifier.fillMaxSize()) {
         // ── Active group banner ───────────────────────────────────────────────
-        val activeGroup = (uiState as? MapViewModel.UiState.Success)?.activeGroup
+        val activeGroup = successState?.activeGroup
         if (activeGroup != null && onOpenGroupMap != null) {
             ActiveGroupBanner(
                 group = activeGroup,
@@ -96,14 +103,13 @@ fun MapScreen(
         // ── Map area (55% of screen height) ──────────────────────────────────
         Box(modifier = Modifier.fillMaxWidth().weight(0.55f)) {
             LocationPermissionHandler {
-                val state = uiState
-                if (state is MapViewModel.UiState.Success) {
+                if (successState != null) {
                     CompositionLocalProvider(LocalMapStyleUrl provides getMapStyleUrl(mapStylePref)) {
                         MapLibreMapView(
                             modifier          = Modifier.fillMaxSize(),
-                            tripsWithPoints   = state.monthlyTripsWithPoints,
-                            trackingState     = state.trackingState,
-                            monthLabel        = state.monthLabel,
+                            tripsWithPoints   = successState.monthlyTripsWithPoints,
+                            trackingState     = successState.trackingState,
+                            monthLabel        = successState.monthLabel,
                             isHeatmapMode     = isHeatmapMode,
                             onTripClick       = onTripClick,
                             recenterTrigger   = recenterTrigger,
@@ -141,8 +147,7 @@ fun MapScreen(
                 }
 
                 // FAB — always visible when permission granted
-                val isTracking = (uiState as? MapViewModel.UiState.Success)
-                    ?.trackingState?.isTracking ?: false
+                val isTracking = successState?.trackingState?.isTracking ?: false
                 TrackingFab(
                     isTracking = isTracking,
                     onToggle = {
@@ -155,65 +160,64 @@ fun MapScreen(
         }
 
         // ── Scrollable content (45% of screen height) ────────────────────────
-        when (val state = uiState) {
-            is MapViewModel.UiState.Loading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(0.45f)
-                        .background(MaterialTheme.colorScheme.background),
-                    contentAlignment = Alignment.Center
-                ) { CircularProgressIndicator(color = TealPrimary) }
-            }
-
-            is MapViewModel.UiState.Error -> {
+        // successState is non-null whenever we have data — current or cached from the
+        // last Success emission — so the bottom half never flashes blank on tab return.
+        if (successState != null) {
+            if (successState.monthlyTripsWithPoints.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(0.45f)
                         .background(MaterialTheme.colorScheme.background)
-                        .padding(16.dp),
+                        .padding(24.dp),
                     contentAlignment = Alignment.Center
-                ) { Text(state.message, color = MaterialTheme.colorScheme.error) }
-            }
-
-            is MapViewModel.UiState.Success -> {
-                if (state.monthlyTripsWithPoints.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(0.45f)
-                            .background(MaterialTheme.colorScheme.background)
-                            .padding(24.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            "No trips yet this month — start your first drive!",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodyMedium
+                ) {
+                    Text(
+                        "No trips yet this month — start your first drive!",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(0.45f)
+                        .background(MaterialTheme.colorScheme.background),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp)
+                ) {
+                    item {
+                        StatCardsRow(stats = successState.todayStats)
+                        Spacer(Modifier.height(16.dp))
+                    }
+                    item {
+                        RecentTripsList(
+                            trips       = successState.recentTrips,
+                            onTripClick = onTripClick,
+                            onLongPress = { renameTarget = it }
                         )
+                        Spacer(Modifier.height(16.dp))
                     }
+                }
+            }
+        } else {
+            // Error or first load with no cached data yet
+            val errorMessage = (uiState as? MapViewModel.UiState.Error)?.message
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(0.45f)
+                    .background(MaterialTheme.colorScheme.background),
+                contentAlignment = Alignment.Center
+            ) {
+                if (errorMessage != null) {
+                    Text(
+                        errorMessage,
+                        modifier = Modifier.padding(16.dp),
+                        color = MaterialTheme.colorScheme.error
+                    )
                 } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(0.45f)
-                            .background(MaterialTheme.colorScheme.background),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp)
-                    ) {
-                        item {
-                            StatCardsRow(stats = state.todayStats)
-                            Spacer(Modifier.height(16.dp))
-                        }
-                        item {
-                            RecentTripsList(
-                                trips       = state.recentTrips,
-                                onTripClick = onTripClick,
-                                onLongPress = { renameTarget = it }
-                            )
-                            Spacer(Modifier.height(16.dp))
-                        }
-                    }
+                    CircularProgressIndicator(color = TealPrimary)
                 }
             }
         }
