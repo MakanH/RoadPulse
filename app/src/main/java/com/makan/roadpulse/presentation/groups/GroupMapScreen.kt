@@ -32,6 +32,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -91,9 +92,10 @@ fun GroupMapScreen(
     val mapStylePref    by settingsViewModel.prefs.mapStyle.collectAsStateWithLifecycle("dark")
     val context = LocalContext.current
 
-    val mapStyleState = remember { mutableStateOf<Style?>(null) }
-    val mapRef        = remember { mutableStateOf<MapLibreMap?>(null) }
-    val centeredOnce  = remember { mutableStateOf(false) }
+    val mapStyleState    = remember { mutableStateOf<Style?>(null) }
+    val mapRef           = remember { mutableStateOf<MapLibreMap?>(null) }
+    val centeredOnce     = remember { mutableStateOf(false) }
+    val latestMapStylePref = rememberUpdatedState(mapStylePref)
 
     val mapView = remember {
         MapView(context).also { mv ->
@@ -102,7 +104,7 @@ fun GroupMapScreen(
                 mapRef.value = map
                 map.uiSettings.isAttributionEnabled = false
                 map.uiSettings.isLogoEnabled = false
-                map.setStyle(getMapStyleUrl(mapStylePref)) { style ->
+                map.setStyle(getMapStyleUrl(latestMapStylePref.value)) { style ->
                     setupMemberLayers(style)
                     mapStyleState.value = style
                 }
@@ -159,7 +161,22 @@ fun GroupMapScreen(
     val isOwner = group?.ownerUid == viewModel.currentUid
 
     Box(modifier = Modifier.fillMaxSize()) {
-        AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize())
+        AndroidView(
+            factory  = { mapView },
+            update   = { _ ->
+                val latestUrl = getMapStyleUrl(latestMapStylePref.value)
+                mapRef.value?.let { map ->
+                    val currentUri = map.style?.uri
+                    if (currentUri != null && currentUri != latestUrl) {
+                        map.setStyle(latestUrl) { style ->
+                            setupMemberLayers(style)
+                            mapStyleState.value = style
+                        }
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
 
         // Center on me FAB
         FloatingActionButton(

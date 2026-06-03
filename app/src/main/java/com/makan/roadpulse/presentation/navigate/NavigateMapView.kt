@@ -49,6 +49,7 @@ fun NavigateMapView(
 
     val latestRoute        = rememberUpdatedState(route)
     val latestIsNavigating = rememberUpdatedState(isNavigating)
+    val latestStyleUrl     = rememberUpdatedState(styleUrl)
 
     val mapView = remember {
         MapView(context).also { mv ->
@@ -57,7 +58,7 @@ fun NavigateMapView(
                 mapRef.value = map
                 map.uiSettings.isAttributionEnabled = false
                 map.uiSettings.isLogoEnabled = false
-                map.setStyle(styleUrl) { style ->
+                map.setStyle(latestStyleUrl.value) { style ->
                     styleRef.value = style
                     setupLocationComponent(map, style, context)
                     latestRoute.value?.let {
@@ -135,7 +136,22 @@ fun NavigateMapView(
         onDispose { lifecycle.removeObserver(observer) }
     }
 
-    AndroidView(factory = { mapView }, modifier = modifier)
+    AndroidView(
+        factory  = { mapView },
+        update   = { _ ->
+            val latestUrl = latestStyleUrl.value
+            mapRef.value?.let { map ->
+                val currentUri = map.style?.uri
+                if (currentUri != null && currentUri != latestUrl) {
+                    map.setStyle(latestUrl) { style ->
+                        styleRef.value = style
+                        setupLocationComponent(map, style, context)
+                    }
+                }
+            }
+        },
+        modifier = modifier
+    )
 }
 
 @SuppressLint("MissingPermission")

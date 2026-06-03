@@ -106,6 +106,7 @@ fun MapLibreMapView(
     val latestTrips        = rememberUpdatedState(tripsWithPoints)
     val latestActiveTripId = rememberUpdatedState(trackingState.currentTrip?.id)
     val latestOnTripClick  = rememberUpdatedState(onTripClick)
+    val latestMapStyleUrl  = rememberUpdatedState(mapStyleUrl)
 
     val mapView = remember {
         MapView(context).also { mv ->
@@ -114,7 +115,7 @@ fun MapLibreMapView(
                 drawingState.mapLibre = map
                 map.uiSettings.isAttributionEnabled = false
                 map.uiSettings.isLogoEnabled = false
-                map.setStyle(mapStyleUrl) { style ->
+                map.setStyle(latestMapStyleUrl.value) { style ->
                     mapStyleState.value = style
                     setupLocationComponent(map, style, context)
                     redrawTrips(style, latestTrips.value, drawingState, latestActiveTripId.value)
@@ -200,7 +201,25 @@ fun MapLibreMapView(
     }
 
     Box(modifier = modifier) {
-        AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize())
+        AndroidView(
+            factory  = { mapView },
+            update   = { _ ->
+                val latestUrl = latestMapStyleUrl.value
+                drawingState.mapLibre?.let { map ->
+                    val currentUri = map.style?.uri
+                    if (currentUri != null && currentUri != latestUrl) {
+                        map.setStyle(latestUrl) { style ->
+                            drawingState.drawnTripIds.clear()
+                            drawingState.heatmapLayerIds.clear()
+                            drawingState.heatmapSrcIds.clear()
+                            mapStyleState.value = style
+                            setupLocationComponent(map, style, context)
+                        }
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
         Text(
             text = "All trips — $monthLabel",
             modifier = Modifier.align(Alignment.TopStart).padding(12.dp),
