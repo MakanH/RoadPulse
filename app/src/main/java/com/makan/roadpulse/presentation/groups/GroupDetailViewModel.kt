@@ -40,8 +40,13 @@ class GroupDetailViewModel @Inject constructor(
     val sessionStarted: StateFlow<String?> = _sessionStarted.asStateFlow()
 
     fun startSession() {
+        val g = group.value ?: return
         viewModelScope.launch {
-            groupService.startGroupSession(groupId).onSuccess { sessionId ->
+            groupService.startGroupSession(
+                groupId         = groupId,
+                groupName       = g.name,
+                otherMemberUids = g.memberUids.filter { it != currentUid }
+            ).onSuccess { sessionId ->
                 LocationTrackingService.startGroupBroadcast(groupId, sessionId)
                 _sessionStarted.value = sessionId
             }

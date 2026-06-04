@@ -4,6 +4,7 @@ import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.makan.roadpulse.data.service.NotificationService
 import com.makan.roadpulse.domain.model.FriendRequest
 import com.makan.roadpulse.domain.model.UserProfile
 import kotlinx.coroutines.channels.awaitClose
@@ -16,7 +17,8 @@ import javax.inject.Singleton
 @Singleton
 class FriendService @Inject constructor(
     private val firestore: FirebaseFirestore,
-    private val auth: FirebaseAuth
+    private val auth: FirebaseAuth,
+    private val notificationService: NotificationService
 ) {
     private val currentUid get() = auth.currentUser?.uid ?: ""
 
@@ -71,6 +73,13 @@ class FriendService @Inject constructor(
                 "createdAt"       to Timestamp.now()
             )
         ).await()
+        notificationService.createNotification(
+            targetUid  = toUid,
+            type       = NotificationService.TYPE_FRIEND_REQUEST,
+            title      = "New friend request",
+            body       = "$displayName wants to be your friend",
+            actionData = mapOf("fromUid" to currentUid)
+        )
     }
 
     fun getIncomingRequests(): Flow<List<FriendRequest>> = callbackFlow {
@@ -130,6 +139,17 @@ class FriendService @Inject constructor(
             "friendIds", FieldValue.arrayUnion(currentUid)
         )
         batch.commit().await()
+        val accepterName = auth.currentUser?.let {
+            it.displayName?.takeIf { n -> n.isNotBlank() }
+                ?: it.email?.substringBefore('@') ?: "Someone"
+        } ?: "Someone"
+        notificationService.createNotification(
+            targetUid  = fromUid,
+            type       = NotificationService.TYPE_FRIEND_ACCEPTED,
+            title      = "Friend request accepted",
+            body       = "$accepterName accepted your friend request",
+            actionData = mapOf("uid" to currentUid)
+        )
     }
 
     suspend fun declineRequest(requestId: String): Result<Unit> = runCatching {

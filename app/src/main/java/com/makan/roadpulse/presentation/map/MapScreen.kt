@@ -48,7 +48,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.makan.roadpulse.domain.model.Group
 import com.makan.roadpulse.domain.model.Trip
+import com.makan.roadpulse.data.service.NotificationService
 import com.makan.roadpulse.presentation.components.OnboardingPopup
+import com.makan.roadpulse.presentation.notifications.NotificationViewModel
 import com.makan.roadpulse.presentation.onboarding.OnboardingViewModel
 import com.makan.roadpulse.presentation.profile.SettingsViewModel
 import com.makan.roadpulse.presentation.theme.TealDark
@@ -61,16 +63,22 @@ fun MapScreen(
     viewModel: MapViewModel = hiltViewModel(),
     settingsViewModel: SettingsViewModel = hiltViewModel(),
     onboardingVm: OnboardingViewModel = hiltViewModel(),
+    notifViewModel: NotificationViewModel = hiltViewModel(),
     onTripClick: (Long) -> Unit = {},
-    onOpenGroupMap: ((groupId: String, sessionId: String) -> Unit)? = null
+    onOpenGroupMap: ((groupId: String, sessionId: String) -> Unit)? = null,
+    onNavigateToFriends: () -> Unit = {},
+    onNavigateToGroup: (groupId: String) -> Unit = {}
 ) {
     val uiState        by viewModel.uiState.collectAsStateWithLifecycle()
     val isHeatmapMode  by viewModel.isHeatmapMode.collectAsStateWithLifecycle()
     val mapStylePref   by settingsViewModel.prefs.mapStyle.collectAsStateWithLifecycle("dark")
     val onboardingSeen by onboardingVm.mapSeen.collectAsStateWithLifecycle(true)
+    val notifications  by notifViewModel.notifications.collectAsStateWithLifecycle()
+    val unreadCount    by notifViewModel.unreadCount.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var renameTarget by remember { mutableStateOf<Trip?>(null) }
     var recenterTrigger by remember { mutableStateOf(0) }
+    var showNotifSheet by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -119,13 +127,6 @@ fun MapScreen(
                         )
                     }
 
-                    // Heatmap toggle pill — top-right
-                    HeatmapToggleButton(
-                        isHeatmapMode = isHeatmapMode,
-                        onToggle      = viewModel::toggleHeatmap,
-                        modifier      = Modifier.align(Alignment.TopEnd).padding(12.dp)
-                    )
-
                     // Bottom-left: speed legend (heatmap mode) stacked above recenter FAB
                     Column(
                         modifier = Modifier.align(Alignment.BottomStart).padding(12.dp),
@@ -156,6 +157,27 @@ fun MapScreen(
                     },
                     modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
                 )
+            }
+
+            // Top-right: notification bell + heatmap toggle stacked
+            // (outside LocationPermissionHandler so bell is always visible)
+            Column(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(end = 12.dp, top = 12.dp),
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                NotificationBellButton(
+                    hasUnread = unreadCount > 0,
+                    onClick   = { showNotifSheet = true }
+                )
+                if (successState != null) {
+                    HeatmapToggleButton(
+                        isHeatmapMode = isHeatmapMode,
+                        onToggle      = viewModel::toggleHeatmap
+                    )
+                }
             }
         }
 
@@ -222,6 +244,33 @@ fun MapScreen(
             }
         }
     } // end Column
+
+    if (showNotifSheet) {
+        NotificationSheet(
+            notifications     = notifications,
+            onDismiss         = { showNotifSheet = false },
+            onMarkAllRead     = {
+                notifViewModel.markAllAsRead()
+                showNotifSheet = false
+            },
+            onNotificationTap = { notif ->
+                notifViewModel.markAsRead(notif.id)
+                showNotifSheet = false
+                when (notif.type) {
+                    NotificationService.TYPE_FRIEND_REQUEST,
+                    NotificationService.TYPE_FRIEND_ACCEPTED -> onNavigateToFriends()
+                    NotificationService.TYPE_GROUP_INVITE -> {
+                        notif.actionData["groupId"]?.let { onNavigateToGroup(it) }
+                    }
+                    NotificationService.TYPE_GROUP_DRIVE_STARTED -> {
+                        val gid = notif.actionData["groupId"]
+                        val sid = notif.actionData["sessionId"]
+                        if (gid != null && sid != null) onOpenGroupMap?.invoke(gid, sid)
+                    }
+                }
+            }
+        )
+    }
 
     if (!onboardingSeen) {
         OnboardingPopup(

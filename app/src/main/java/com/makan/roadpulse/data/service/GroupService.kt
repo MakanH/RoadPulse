@@ -17,7 +17,8 @@ import javax.inject.Singleton
 @Singleton
 class GroupService @Inject constructor(
     private val firestore: FirebaseFirestore,
-    private val auth: FirebaseAuth
+    private val auth: FirebaseAuth,
+    private val notificationService: NotificationService
 ) {
     private val currentUid get() = auth.currentUser?.uid ?: ""
 
@@ -35,6 +36,16 @@ class GroupService @Inject constructor(
         // patch id field into the doc
         firestore.collection("groups").document(ref.id)
             .update("id", ref.id).await()
+        // notify each invited friend
+        friendUids.forEach { uid ->
+            notificationService.createNotification(
+                targetUid  = uid,
+                type       = NotificationService.TYPE_GROUP_INVITE,
+                title      = "Added to a group",
+                body       = "You were added to \"$name\"",
+                actionData = mapOf("groupId" to ref.id)
+            )
+        }
         ref.id
     }
 
@@ -65,7 +76,11 @@ class GroupService @Inject constructor(
             .update("memberUids", FieldValue.arrayRemove(currentUid)).await()
     }
 
-    suspend fun startGroupSession(groupId: String): Result<String> = runCatching {
+    suspend fun startGroupSession(
+        groupId: String,
+        groupName: String,
+        otherMemberUids: List<String>
+    ): Result<String> = runCatching {
         val sessionRef = firestore.collection("groups").document(groupId)
             .collection("sessions").add(
                 hashMapOf(
@@ -78,6 +93,20 @@ class GroupService @Inject constructor(
         sessionRef.update("id", sessionRef.id).await()
         firestore.collection("groups").document(groupId)
             .update("activeSessionId", sessionRef.id).await()
+        // notify other members
+        val starterName = auth.currentUser?.let {
+            it.displayName?.takeIf { n -> n.isNotBlank() }
+                ?: it.email?.substringBefore('@') ?: "Someone"
+        } ?: "Someone"
+        otherMemberUids.forEach { uid ->
+            notificationService.createNotification(
+                targetUid  = uid,
+                type       = NotificationService.TYPE_GROUP_DRIVE_STARTED,
+                title      = "Group drive started",
+                body       = "$starterName started a drive in \"$groupName\"",
+                actionData = mapOf("groupId" to groupId, "sessionId" to sessionRef.id)
+            )
+        }
         sessionRef.id
     }
 

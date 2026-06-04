@@ -40,6 +40,12 @@ fun NavGraph(
                 },
                 onOpenGroupMap = { groupId, sessionId ->
                     navController.navigate(Screen.GroupMap.createRoute(groupId, sessionId))
+                },
+                onNavigateToFriends = {
+                    navController.navigate(Screen.Friends.route)
+                },
+                onNavigateToGroup = { groupId ->
+                    navController.navigate(Screen.GroupDetail.createRoute(groupId))
                 }
             )
         }

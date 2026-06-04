@@ -200,28 +200,7 @@ fun GroupDetailScreen(
             }
         }
 
-        // Invite button (owner only)
-        if (isOwner) {
-            item {
-                Spacer(Modifier.height(12.dp))
-                OutlinedButton(
-                    onClick = { showInviteSheet = true },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .height(46.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TealPrimary)
-                ) {
-                    Icon(Icons.Filled.PersonAdd, contentDescription = null,
-                        modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Invite friend")
-                }
-            }
-        }
-
-        // Session controls
+        // Session controls — primary action comes first
         item {
             Spacer(Modifier.height(20.dp))
             Column(modifier = Modifier.padding(horizontal = 16.dp)) {
@@ -241,6 +220,27 @@ fun GroupDetailScreen(
                             colors = ButtonDefaults.buttonColors(containerColor = TealPrimary)
                         ) { Text("Join drive", fontWeight = FontWeight.Medium) }
                     }
+                }
+            }
+        }
+
+        // Invite button (owner only)
+        if (isOwner) {
+            item {
+                Spacer(Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = { showInviteSheet = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .height(46.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TealPrimary)
+                ) {
+                    Icon(Icons.Filled.PersonAdd, contentDescription = null,
+                        modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Invite friend")
                 }
             }
         }
