@@ -1,14 +1,17 @@
 package com.makan.roadpulse.presentation.leaderboard
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -16,28 +19,24 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Route
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,23 +44,51 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
 import com.makan.roadpulse.presentation.components.OnboardingPopup
 import com.makan.roadpulse.presentation.onboarding.OnboardingViewModel
-import com.makan.roadpulse.presentation.theme.TealPrimary
-import com.makan.roadpulse.presentation.util.LocalUnitPrefs
 
-private val AmberAccent = Color(0xFFEF9F27)
+// ── Design tokens ─────────────────────────────────────────────────────────────
+
+private val AppBg      = Color(0xFF13162A)
+private val CardBg     = Color(0xFF2B2F49)
+private val InsetBg    = Color(0xFF1D2238)
+private val SegBg      = Color(0xFF1B1F36)
+private val Hairline   = Color(0x12FFFFFF)
+private val Green      = Color(0xFF2ED391)
+private val GreenDeep  = Color(0xFF15B37E)
+private val Gold       = Color(0xFFF5C542)
+private val GoldDark   = Color(0xFFB8942A)
+private val Amber      = Color(0xFFF5A623)
+private val Silver     = Color(0xFFC7CCDA)
+private val SilverDark = Color(0xFF8F949F)
+private val Bronze     = Color(0xFFCD8B53)
+private val BronzeDark = Color(0xFF8B5C32)
+private val Danger     = Color(0xFFE0606E)
+private val TxtPrimary = Color(0xFFF3F5FB)
+private val TxtMuted   = Color(0xFF9298B6)
+private val TxtDimmer  = Color(0xFF7B81A0)
+
+private val AVATAR_COLORS = listOf(
+    Color(0xFF6B4CE0), Color(0xFF4A90E2), Color(0xFF2ED391), Color(0xFFE0606E),
+    Color(0xFFF5A623), Color(0xFF9B59B6), Color(0xFF1ABC9C), Color(0xFFE74C3C)
+)
+private fun avatarColor(name: String) =
+    AVATAR_COLORS[name.hashCode().let { if (it < 0) -it else it } % AVATAR_COLORS.size]
+
+// ── Screen ────────────────────────────────────────────────────────────────────
 
 @Composable
 fun LeaderboardScreen(
@@ -72,15 +99,18 @@ fun LeaderboardScreen(
     val uiState        by viewModel.uiState.collectAsStateWithLifecycle()
     val onboardingSeen by onboardingVm.boardSeen.collectAsStateWithLifecycle(true)
 
-    Box(Modifier.fillMaxSize()) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Brush.verticalGradient(listOf(Color(0xFF181C34), AppBg)))
+    ) {
         when (val state = uiState) {
             is LeaderboardViewModel.UiState.Loading ->
-                Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
-                    contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = TealPrimary)
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = Green, strokeWidth = 2.dp)
                 }
             is LeaderboardViewModel.UiState.Success ->
-                SocialContent(state.social, onNavigateToFriends)
+                BoardContent(state.social, onNavigateToFriends)
         }
 
         if (!onboardingSeen) {
@@ -94,186 +124,623 @@ fun LeaderboardScreen(
     }
 }
 
+// ── Main content ──────────────────────────────────────────────────────────────
+
 @Composable
-private fun SocialContent(
+private fun BoardContent(
     social: LeaderboardViewModel.SocialStatsData,
     onNavigateToFriends: () -> Unit
 ) {
-    when {
-        social.isLoading -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
-            contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = TealPrimary)
+    if (social.isLoading) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = Green, strokeWidth = 2.dp)
         }
+        return
+    }
 
-        !social.hasFriends -> Box(
-            Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(32.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Filled.People, contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f))
-                Spacer(Modifier.height(16.dp))
-                Text("Add friends to compare stats!", fontWeight = FontWeight.Medium,
-                    fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
-                Spacer(Modifier.height(8.dp))
-                Text("Your rankings with friends will appear here.",
-                    fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(20.dp))
-                Button(onClick = onNavigateToFriends,
-                    colors = ButtonDefaults.buttonColors(containerColor = TealPrimary),
-                    shape = RoundedCornerShape(10.dp)) {
-                    Text("Find friends")
-                }
+    var selectedMetric by remember { mutableStateOf(0) }
+
+    val entries = when (selectedMetric) {
+        1    -> social.byDistance
+        2    -> social.byDuration
+        else -> social.bySpeed
+    }
+    val metricLabel = when (selectedMetric) {
+        1    -> "THIS SEASON"
+        2    -> "TOTAL TIME"
+        else -> "TOP SPEED RUN"
+    }
+
+    val podium = entries.take(3)
+    val ranked = entries.drop(3)
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 32.dp)
+    ) {
+        item { BoardHeader() }
+        item { Spacer(Modifier.height(14.dp)) }
+        item {
+            MetricSegmentedControl(
+                selected = selectedMetric,
+                onSelect = { selectedMetric = it },
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+        }
+        item { Spacer(Modifier.height(16.dp)) }
+        if (podium.size >= 3) {
+            item { PodiumSection(podium = podium) }
+        }
+        item { Spacer(Modifier.height(14.dp)) }
+        item {
+            MilestoneCard(
+                social  = social,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+        }
+        if (ranked.isNotEmpty()) {
+            item { Spacer(Modifier.height(16.dp)) }
+            item {
+                RankedListHeader(
+                    metricLabel = metricLabel,
+                    modifier    = Modifier.padding(horizontal = 16.dp)
+                )
+            }
+            item { Spacer(Modifier.height(6.dp)) }
+            items(ranked) { entry ->
+                RankedRow(
+                    entry    = entry,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 3.dp)
+                )
             }
         }
 
-        else -> LazyColumn(
-            modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
-            contentPadding = PaddingValues(bottom = 24.dp)
-        ) {
-            item { Spacer(Modifier.height(8.dp)) }
-            item { RankingsCard(social) }
-            item { Spacer(Modifier.height(16.dp)) }
-            item { FunStatsCard(social) }
+        if (!social.hasFriends) {
+            item {
+                Spacer(Modifier.height(20.dp))
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Button(
+                        onClick = onNavigateToFriends,
+                        colors  = ButtonDefaults.buttonColors(containerColor = Green),
+                        shape   = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Find real friends", color = Color.Black, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
         }
     }
 }
 
-// ── Rankings card with inner speed/distance/duration tabs ─────────────────────
+// ── Header ────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun RankingsCard(social: LeaderboardViewModel.SocialStatsData) {
-    var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("By speed" to social.bySpeed, "By distance" to social.byDistance, "By duration" to social.byDuration)
-
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+private fun BoardHeader() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Column {
-            TabRow(
-                selectedTabIndex = selectedTab,
-                containerColor   = MaterialTheme.colorScheme.surfaceVariant,
-                contentColor     = MaterialTheme.colorScheme.onSurface,
-                indicator        = { tabPositions ->
-                    val tab = tabPositions[selectedTab]
-                    Box(
-                        Modifier.fillMaxWidth().wrapContentSize(Alignment.BottomStart)
-                            .offset(x = tab.left).width(tab.width).height(2.dp).background(TealPrimary)
+        Column(Modifier.weight(1f)) {
+            Text(
+                "Leaderboard",
+                fontSize   = 26.sp,
+                fontWeight = FontWeight.Black,
+                color      = TxtPrimary,
+                lineHeight = 28.sp
+            )
+            Text(
+                "Among friends · June 2026",
+                fontSize = 12.sp,
+                color    = TxtMuted
+            )
+        }
+        // Season chip
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(20.dp))
+                .background(Gold.copy(alpha = 0.12f))
+                .border(1.dp, Gold.copy(alpha = 0.4f), RoundedCornerShape(20.dp))
+                .padding(horizontal = 10.dp, vertical = 5.dp)
+        ) {
+            Text("⚡ Season 1", fontSize = 12.sp, color = Gold, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+// ── Segmented control ─────────────────────────────────────────────────────────
+
+@Composable
+private fun MetricSegmentedControl(
+    selected: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val labels = listOf("speed", "distance", "duration")
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(SegBg)
+            .padding(4.dp)
+    ) {
+        Row(Modifier.fillMaxWidth()) {
+            labels.forEachIndexed { i, label ->
+                val isActive = selected == i
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(
+                            if (isActive) Brush.horizontalGradient(listOf(Green, GreenDeep))
+                            else          Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent))
+                        )
+                        .clickable { onSelect(i) }
+                        .padding(vertical = 9.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text       = label,
+                        fontSize   = 13.sp,
+                        fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
+                        color      = if (isActive) Color(0xFF0D1A14) else TxtMuted
                     )
                 }
-            ) {
-                tabs.forEachIndexed { i, (title, _) ->
-                    Tab(selected = selectedTab == i, onClick = { selectedTab = i },
-                        selectedContentColor   = TealPrimary,
-                        unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant) {
-                        Text(title, fontSize = 13.sp, modifier = Modifier.padding(vertical = 12.dp))
-                    }
-                }
-            }
-
-            val entries = tabs[selectedTab].second
-            if (entries.isEmpty()) {
-                Box(Modifier.fillMaxWidth().height(80.dp), contentAlignment = Alignment.Center) {
-                    Text("No data yet", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            } else {
-                entries.forEachIndexed { index, entry ->
-                    SocialEntryRow(entry)
-                    if (index < entries.lastIndex) {
-                        HorizontalDivider(Modifier.padding(horizontal = 16.dp), 0.5.dp,
-                            MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
-                    }
-                }
             }
         }
     }
 }
 
-@Composable
-private fun SocialEntryRow(entry: LeaderboardViewModel.SocialEntry) {
-    val leftBorderColor = when {
-        entry.rank == 1 -> AmberAccent
-        entry.isCurrentUser -> TealPrimary
-        else -> Color.Transparent
-    }
-    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
-        Box(Modifier.width(3.dp).fillMaxHeight().background(leftBorderColor))
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("${entry.rank}", fontSize = 18.sp, fontWeight = FontWeight.W500,
-                color = if (entry.rank == 1) AmberAccent else MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.width(28.dp))
-            Spacer(Modifier.width(8.dp))
-            if (entry.photoUrl != null) {
-                AsyncImage(model = entry.photoUrl, contentDescription = null,
-                    modifier = Modifier.size(32.dp).clip(CircleShape),
-                    contentScale = ContentScale.Crop)
-            } else {
-                Box(Modifier.size(32.dp).clip(CircleShape)
-                    .background(if (entry.isCurrentUser) TealPrimary else MaterialTheme.colorScheme.outline),
-                    contentAlignment = Alignment.Center) {
-                    Text(entry.displayName.firstOrNull()?.uppercase() ?: "?",
-                        fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
-                }
-            }
-            Spacer(Modifier.width(10.dp))
-            Column(Modifier.weight(1f)) {
-                Text(entry.displayName, fontSize = 13.sp, fontWeight = FontWeight.Medium,
-                    color = if (entry.isCurrentUser) TealPrimary else MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(entry.tripLabel, fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            Spacer(Modifier.width(8.dp))
-            Text(entry.value, fontSize = 13.sp, fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface)
-        }
-    }
-}
-
-// ── Fun stats card ────────────────────────────────────────────────────────────
+// ── Podium ────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun FunStatsCard(social: LeaderboardViewModel.SocialStatsData) {
-    val units = LocalUnitPrefs.current
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+private fun PodiumSection(podium: List<LeaderboardViewModel.SocialEntry>) {
+    val p1 = podium[0]; val p2 = podium[1]; val p3 = podium[2]
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("You've driven ${units.formatDistanceKm(social.myTotalKm)}",
-                fontSize = 14.sp, fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface)
-            Text("Next milestone: ${social.nextMilestoneName} (${units.formatDistanceKm(social.nextMilestoneTargetKm)})",
-                fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            LinearProgressIndicator(
-                progress = { social.milestoneProgress },
-                modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
-                color = TealPrimary,
-                trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f),
-                strokeCap = StrokeCap.Round
-            )
-            Spacer(Modifier.height(4.dp))
-            if (social.mostActiveFriend != null) {
-                FunStatRow(Icons.Filled.People, "Most active friend: ${social.mostActiveFriend}")
+        val w = maxWidth
+        // Radial glow behind podium
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(220.dp)
+                .drawBehind {
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            listOf(Gold.copy(alpha = 0.18f), Green.copy(alpha = 0.06f), Color.Transparent),
+                            center = Offset(size.width / 2, size.height * 0.4f),
+                            radius = size.width * 0.55f
+                        )
+                    )
+                }
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter),
+                verticalAlignment = Alignment.Bottom
+            ) {
+                // 2nd place
+                PodiumColumn(
+                    entry         = p2,
+                    medalColor    = Silver,
+                    medalDark     = SilverDark,
+                    pedestalH     = 76,
+                    avatarSize    = 48,
+                    valueSize     = 18,
+                    showCrown     = false,
+                    modifier      = Modifier.weight(1f)
+                )
+                // 1st place (center, wider)
+                PodiumColumn(
+                    entry         = p1,
+                    medalColor    = Gold,
+                    medalDark     = GoldDark,
+                    pedestalH     = 104,
+                    avatarSize    = 60,
+                    valueSize     = 24,
+                    showCrown     = true,
+                    modifier      = Modifier.weight(1.15f)
+                )
+                // 3rd place
+                PodiumColumn(
+                    entry         = p3,
+                    medalColor    = Bronze,
+                    medalDark     = BronzeDark,
+                    pedestalH     = 60,
+                    avatarSize    = 48,
+                    valueSize     = 18,
+                    showCrown     = false,
+                    modifier      = Modifier.weight(1f)
+                )
             }
         }
     }
 }
 
 @Composable
-private fun FunStatRow(icon: ImageVector, label: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(14.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.width(6.dp))
-        Text(label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+private fun PodiumColumn(
+    entry: LeaderboardViewModel.SocialEntry,
+    medalColor: Color,
+    medalDark: Color,
+    pedestalH: Int,
+    avatarSize: Int,
+    valueSize: Int,
+    showCrown: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier            = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Bottom
+    ) {
+        if (showCrown) {
+            Text("👑", fontSize = 18.sp)
+            Spacer(Modifier.height(2.dp))
+        }
+
+        // Avatar with medal ring + rank badge
+        Box(
+            modifier            = Modifier.size((avatarSize + 14).dp),
+            contentAlignment    = Alignment.TopCenter
+        ) {
+            // Ring
+            Box(
+                Modifier
+                    .size((avatarSize + 6).dp)
+                    .clip(CircleShape)
+                    .background(medalColor)
+                    .align(Alignment.TopCenter)
+            )
+            // Avatar
+            InitialsAvatar(
+                name     = entry.displayName,
+                size     = avatarSize.dp,
+                modifier = Modifier.align(Alignment.TopCenter).offset(y = 3.dp)
+            )
+            // Rank badge
+            Box(
+                modifier = Modifier
+                    .size(20.dp)
+                    .align(Alignment.BottomCenter)
+                    .clip(CircleShape)
+                    .background(medalColor)
+                    .border(1.5.dp, AppBg, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "${entry.rank}",
+                    fontSize   = 9.sp,
+                    fontWeight = FontWeight.Black,
+                    color      = Color.Black
+                )
+            }
+        }
+
+        Spacer(Modifier.height(4.dp))
+
+        // Name
+        val displayLabel = if (entry.isCurrentUser) "You" else entry.displayName.split(" ").first()
+        Text(
+            text       = displayLabel,
+            fontSize   = 12.sp,
+            fontWeight = FontWeight.Medium,
+            color      = if (entry.isCurrentUser) Green else TxtPrimary,
+            maxLines   = 1
+        )
+
+        // Value
+        Text(
+            text       = entry.value,
+            fontSize   = valueSize.sp,
+            fontWeight = FontWeight.Black,
+            color      = if (entry.rank == 1) Gold else medalColor,
+            maxLines   = 1
+        )
+
+        Spacer(Modifier.height(4.dp))
+
+        // Pedestal block
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(pedestalH.dp)
+                .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
+                .background(Brush.verticalGradient(listOf(medalColor.copy(alpha = 0.9f), medalDark)))
+        ) {
+            // Faded rank number inside pedestal
+            Text(
+                text     = "${entry.rank}",
+                fontSize = (pedestalH * 0.65).sp,
+                fontWeight = FontWeight.Black,
+                color    = Color.White.copy(alpha = 0.12f),
+                modifier = Modifier.align(Alignment.Center)
+            )
+            // Diagonal shine
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .drawBehind {
+                        val path = Path().apply {
+                            moveTo(size.width * 0.55f, 0f)
+                            lineTo(size.width, 0f)
+                            lineTo(size.width * 0.45f, size.height)
+                            lineTo(0f, size.height)
+                            close()
+                        }
+                        drawPath(path, Color.White.copy(alpha = 0.07f))
+                    }
+            )
+        }
+    }
+}
+
+// ── Milestone card ────────────────────────────────────────────────────────────
+
+@Composable
+private fun MilestoneCard(
+    social: LeaderboardViewModel.SocialStatsData,
+    modifier: Modifier = Modifier
+) {
+    val progress by animateFloatAsState(social.milestoneProgress, tween(800), label = "mp")
+    val goalKm = "%,.0f km".format(social.nextMilestoneTargetKm)
+    val drivenKm = "%,.1f km".format(social.myTotalKm)
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(CardBg)
+            .padding(14.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            // Top row
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Road icon tinted box
+                Box(
+                    modifier            = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Green.copy(alpha = 0.15f)),
+                    contentAlignment    = Alignment.Center
+                ) {
+                    Icon(Icons.Filled.Route, null, Modifier.size(18.dp), tint = Green)
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "You've driven $drivenKm",
+                        fontSize   = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color      = TxtPrimary
+                    )
+                    Text(
+                        "Next milestone · ${social.nextMilestoneName}",
+                        fontSize = 11.sp,
+                        color    = TxtMuted
+                    )
+                }
+                Text(
+                    goalKm,
+                    fontSize   = 14.sp,
+                    fontWeight = FontWeight.Black,
+                    color      = TxtMuted
+                )
+            }
+
+            // Gradient progress bar with glowing knob
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val barW = maxWidth
+                Row(
+                    modifier            = Modifier.fillMaxWidth().height(6.dp),
+                    verticalAlignment   = Alignment.CenterVertically
+                ) {
+                    if (progress > 0.01f) {
+                        Box(
+                            Modifier
+                                .weight(progress.coerceAtLeast(0.01f))
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(Brush.horizontalGradient(listOf(GreenDeep, Green)))
+                        )
+                    }
+                    // Glowing knob
+                    Box(
+                        Modifier
+                            .size(12.dp)
+                            .clip(CircleShape)
+                            .background(Green)
+                            .border(2.dp, Green.copy(alpha = 0.35f), CircleShape)
+                    )
+                    if (progress < 0.99f) {
+                        Box(
+                            Modifier
+                                .weight((1f - progress).coerceAtLeast(0.01f))
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(InsetBg)
+                        )
+                    }
+                }
+            }
+
+            // Footer chips
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (social.mostActiveFriend != null) {
+                    MilestoneChip("👥 Most active · ${social.mostActiveFriend}")
+                }
+                MilestoneChip("🔥 4-day streak")
+            }
+        }
+    }
+}
+
+@Composable
+private fun MilestoneChip(label: String) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(InsetBg)
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+    ) {
+        Text(label, fontSize = 11.sp, color = TxtMuted)
+    }
+}
+
+// ── Ranked list ───────────────────────────────────────────────────────────────
+
+@Composable
+private fun RankedListHeader(metricLabel: String, modifier: Modifier = Modifier) {
+    Row(
+        modifier            = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text("RANK", fontSize = 10.sp, color = TxtDimmer, fontWeight = FontWeight.SemiBold,
+            letterSpacing = 1.sp)
+        Text(metricLabel, fontSize = 10.sp, color = TxtDimmer, fontWeight = FontWeight.SemiBold,
+            letterSpacing = 1.sp)
+    }
+}
+
+@Composable
+private fun RankedRow(
+    entry: LeaderboardViewModel.SocialEntry,
+    modifier: Modifier = Modifier
+) {
+    val bgModifier = if (entry.isCurrentUser) {
+        Modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(
+                Brush.horizontalGradient(
+                    listOf(Green.copy(alpha = 0.12f), CardBg),
+                    startX = 0f, endX = 400f
+                )
+            )
+            .border(1.dp, Green.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
+    } else {
+        Modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(CardBg)
+    }
+
+    Row(
+        modifier            = modifier.fillMaxWidth().then(bgModifier).padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment   = Alignment.CenterVertically
+    ) {
+        // Rank number
+        Text(
+            "${entry.rank}",
+            fontSize   = 16.sp,
+            fontWeight = FontWeight.Black,
+            color      = if (entry.isCurrentUser) Green else TxtDimmer,
+            modifier   = Modifier.width(24.dp)
+        )
+        Spacer(Modifier.width(10.dp))
+
+        // Avatar
+        InitialsAvatar(name = entry.displayName, size = 36.dp)
+        Spacer(Modifier.width(10.dp))
+
+        // Name + route
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    entry.displayName,
+                    fontSize   = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    color      = if (entry.isCurrentUser) Green else TxtPrimary,
+                    maxLines   = 1,
+                    overflow   = TextOverflow.Ellipsis
+                )
+                if (entry.isCurrentUser) YouTag()
+            }
+            Text(
+                entry.tripLabel,
+                fontSize = 11.sp,
+                color    = TxtMuted,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        Spacer(Modifier.width(8.dp))
+
+        // Value + trend pill
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                entry.value,
+                fontSize   = 14.sp,
+                fontWeight = FontWeight.Black,
+                color      = TxtPrimary,
+                maxLines   = 1
+            )
+            Spacer(Modifier.height(2.dp))
+            TrendPill(entry.trend)
+        }
+    }
+}
+
+// ── Shared small components ───────────────────────────────────────────────────
+
+@Composable
+fun TrendPill(trend: Int?) {
+    val (text, bg, fg) = when {
+        trend == null || trend == 0 -> Triple("—", Color.White.copy(alpha = 0.06f), TxtDimmer)
+        trend > 0 -> Triple("▲ $trend", Green.copy(alpha = 0.15f), Green)
+        else      -> Triple("▼ ${-trend}", Danger.copy(alpha = 0.15f), Danger)
+    }
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(4.dp))
+            .background(bg)
+            .padding(horizontal = 5.dp, vertical = 2.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text, fontSize = 10.sp, color = fg, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+fun YouTag() {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(4.dp))
+            .background(Green.copy(alpha = 0.18f))
+            .padding(horizontal = 5.dp, vertical = 1.dp)
+    ) {
+        Text("YOU", fontSize = 9.sp, color = Green, fontWeight = FontWeight.Black, letterSpacing = 0.5.sp)
+    }
+}
+
+@Composable
+fun InitialsAvatar(
+    name: String,
+    size: androidx.compose.ui.unit.Dp,
+    photoUrl: String? = null,
+    modifier: Modifier = Modifier
+) {
+    val initial  = name.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+    val bgColor  = avatarColor(name)
+    val fontSize = (size.value * 0.38f).sp
+
+    Box(
+        modifier            = modifier.size(size).clip(CircleShape).background(bgColor),
+        contentAlignment    = Alignment.Center
+    ) {
+        if (photoUrl != null) {
+            coil.compose.AsyncImage(
+                model              = photoUrl,
+                contentDescription = null,
+                modifier           = Modifier.fillMaxSize(),
+                contentScale       = androidx.compose.ui.layout.ContentScale.Crop
+            )
+        } else {
+            Text(initial, fontSize = fontSize, color = Color.White, fontWeight = FontWeight.Bold)
+        }
     }
 }

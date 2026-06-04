@@ -2,11 +2,16 @@ package com.makan.roadpulse.presentation.profile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.auth.FirebaseAuth
 import com.makan.roadpulse.data.local.PreferencesManager
 import com.makan.roadpulse.data.service.AuthService
 import com.makan.roadpulse.data.service.FriendService
 import com.makan.roadpulse.data.service.GroupService
+import com.makan.roadpulse.data.service.LeaderboardService
+import com.makan.roadpulse.domain.model.FriendTripStat
+import com.makan.roadpulse.domain.model.Group
 import com.makan.roadpulse.domain.model.Trip
+import com.makan.roadpulse.domain.model.UserProfile
 import com.makan.roadpulse.domain.repository.TripRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -27,8 +32,24 @@ class ProfileViewModel @Inject constructor(
     private val prefs: PreferencesManager,
     private val authService: AuthService,
     private val friendService: FriendService,
-    private val groupService: GroupService
+    private val groupService: GroupService,
+    private val leaderboardService: LeaderboardService,
+    private val auth: FirebaseAuth
 ) : ViewModel() {
+
+    private val currentUid get() = auth.currentUser?.uid ?: ""
+
+    // ── Data classes ───────────────────────────────────────────────────────────
+
+    data class FriendLbEntry(
+        val rank: Int,
+        val uid: String,
+        val displayName: String,
+        val photoUrl: String?,
+        val valueStr: String,
+        val isCurrentUser: Boolean,
+        val trend: Int?
+    )
 
     data class LifetimeStats(
         val totalTrips: Int,
@@ -54,80 +75,160 @@ class ProfileViewModel @Inject constructor(
         val email: String = "",
         val photoUrl: String? = null,
         val friendCount: Int = 0,
-        val groupCount: Int = 0
+        val groupCount: Int = 0,
+        // new fields
+        val friends: List<UserProfile> = emptyList(),
+        val groups: List<Group> = emptyList(),
+        val friendLeaderboard: List<FriendLbEntry> = emptyList(),
+        val xpLevel: Int = 1,
+        val xpCurrent: Int = 0,
+        val xpMax: Int = 200,
+        val tierName: String = "Rookie",
+        val accountCreatedAt: String = ""
     )
 
-    private val friendCount = friendService.getFriends()
-        .catch { emit(emptyList()) }
-        .map { it.size }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+    // ── Seed data (mirrors LeaderboardViewModel seeds for consistency) ──────────
 
-    private val groupCount = groupService.getMyGroups()
+    private val SEED_FRIENDS = listOf(
+        UserProfile("s1", "Aria Novak",   "", null, 0),
+        UserProfile("s2", "Rafael Costa", "", null, 0),
+        UserProfile("s3", "Bianca Kim",   "", null, 0),
+        UserProfile("s4", "Ivan Kozlov",  "", null, 0),
+        UserProfile("s5", "Priya Singh",  "", null, 0),
+        UserProfile("s6", "Tariq Benali", "", null, 0),
+        UserProfile("s7", "Yuki Tanaka",  "", null, 0),
+    )
+
+    private val SEED_LB = listOf(
+        // (name, distStr, trend) — "this week" distance
+        Triple("You",          "2,410 km",  1),
+        Triple("Aria Novak",   "1,820 km",  2),
+        Triple("Sofia Reyes",  "1,540 km",  null),
+        Triple("Tariq Benali", "1,390 km",  1),
+    )
+
+    // ── Flows ──────────────────────────────────────────────────────────────────
+
+    private val friendsFlow: StateFlow<List<UserProfile>> = friendService.getFriends()
         .catch { emit(emptyList()) }
-        .map { it.size }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val groupsFlow: StateFlow<List<Group>> = groupService.getMyGroups()
+        .catch { emit(emptyList()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val lbRaw: StateFlow<List<FriendTripStat>> = leaderboardService.getFriendsTripStats()
+        .catch { emit(emptyList()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private data class SocialBundle(
+        val friends: List<UserProfile>,
+        val groups: List<Group>,
+        val lb: List<FriendTripStat>
+    )
+
+    private val socialBundle: StateFlow<SocialBundle> = combine(
+        friendsFlow, groupsFlow, lbRaw
+    ) { friends, groups, lb ->
+        SocialBundle(friends, groups, lb)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000),
+        SocialBundle(emptyList(), emptyList(), emptyList()))
 
     val uiState: StateFlow<ProfileUiState?> = combine(
         repository.getAllTrips(),
         combine(
-            prefs.autoTracking,
-            prefs.speedUnit,
-            prefs.distanceUnit,
-            prefs.backgroundNotification
+            prefs.autoTracking, prefs.speedUnit, prefs.distanceUnit, prefs.backgroundNotification
         ) { auto, speed, dist, bg -> Settings(auto, speed, dist, bg) },
         authService.currentUser,
-        combine(friendCount, groupCount) { f, g -> f to g }
-    ) { trips, settings, user, (fCount, gCount) ->
+        socialBundle
+    ) { trips, settings, user, social ->
+        val uid    = user?.uid ?: ""
+        val hasFriends = social.friends.isNotEmpty()
+
+        val friends = if (hasFriends) social.friends else SEED_FRIENDS
+        val lbEntries = buildFriendLb(uid, social.lb, hasFriends)
+        val (lvl, xpCur, xpMax) = computeXp(computeStats(trips))
+
+        // Account creation date from Firebase user metadata
+        val createdAt = user?.metadata?.creationTimestamp
+            ?.let { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(it)) }
+            ?: ""
+
         ProfileUiState(
-            stats = computeStats(trips),
-            settings = settings,
-            displayName = user?.displayName?.takeIf { it.isNotBlank() }
-                ?: user?.email?.substringBefore('@')
-                ?: "Driver",
-            email = user?.email ?: "",
-            photoUrl = user?.photoUrl?.toString(),
-            friendCount = fCount,
-            groupCount = gCount
+            stats           = computeStats(trips),
+            settings        = settings,
+            displayName     = user?.displayName?.takeIf { it.isNotBlank() }
+                              ?: user?.email?.substringBefore('@') ?: "Driver",
+            email           = user?.email ?: "",
+            photoUrl        = user?.photoUrl?.toString(),
+            friendCount     = friends.size,
+            groupCount      = social.groups.size,
+            friends         = friends,
+            groups          = social.groups,
+            friendLeaderboard = lbEntries,
+            xpLevel         = lvl,
+            xpCurrent       = xpCur,
+            xpMax           = xpMax,
+            tierName        = tierName(lvl),
+            accountCreatedAt = createdAt
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    fun setAutoTracking(v: Boolean)          { viewModelScope.launch { prefs.setAutoTracking(v) } }
-    fun setBackgroundNotification(v: Boolean) { viewModelScope.launch { prefs.setBackgroundNotification(v) } }
+    // ── Helpers ────────────────────────────────────────────────────────────────
 
-    fun cycleSpeedUnit() {
-        viewModelScope.launch {
-            val cur = uiState.value?.settings?.speedUnit ?: "km/h"
-            prefs.setSpeedUnit(if (cur == "km/h") "mph" else "km/h")
+    private fun buildFriendLb(
+        uid: String,
+        raw: List<FriendTripStat>,
+        hasFriends: Boolean
+    ): List<FriendLbEntry> {
+        if (!hasFriends) {
+            return SEED_LB.mapIndexed { i, (name, dist, trend) ->
+                FriendLbEntry(
+                    rank          = i + 1,
+                    uid           = if (i == 0) uid else "s${i}",
+                    displayName   = name,
+                    photoUrl      = null,
+                    valueStr      = dist,
+                    isCurrentUser = i == 0,
+                    trend         = trend
+                )
+            }
+        }
+        return raw.sortedByDescending { it.distanceKm }.take(4)
+            .mapIndexed { i, s ->
+                FriendLbEntry(
+                    rank          = i + 1,
+                    uid           = s.uid,
+                    displayName   = s.displayName,
+                    photoUrl      = s.photoUrl,
+                    valueStr      = "%,.0f km".format(s.distanceKm),
+                    isCurrentUser = s.uid == uid,
+                    trend         = null
+                )
+            }
+    }
+
+    private fun computeXp(stats: LifetimeStats): Triple<Int, Int, Int> {
+        val xp = (stats.totalTrips * 150 + stats.totalDistanceKm.toInt()).coerceAtLeast(0)
+        return when {
+            xp < 200  -> Triple(1, xp,       200)
+            xp < 500  -> Triple(2, xp - 200, 300)
+            xp < 1000 -> Triple(3, xp - 500, 500)
+            xp < 2000 -> Triple(4, xp - 1000, 1000)
+            else      -> Triple(5, xp - 2000, 2000)
         }
     }
 
-    fun setSpeedUnit(unit: String)    { viewModelScope.launch { prefs.setSpeedUnit(unit) } }
-    fun setDistanceUnit(unit: String) { viewModelScope.launch { prefs.setDistanceUnit(unit) } }
-
-    fun cycleDistanceUnit() {
-        viewModelScope.launch {
-            val cur = uiState.value?.settings?.distanceUnit ?: "km"
-            prefs.setDistanceUnit(if (cur == "km") "miles" else "km")
-        }
-    }
-
-    fun deleteAllData() { viewModelScope.launch { repository.deleteAllData() } }
-
-    fun signOut() = authService.signOut()
-
-    fun deleteAccountAndAllData() {
-        viewModelScope.launch {
-            repository.deleteAllData()
-            authService.deleteAccount()
-        }
+    private fun tierName(level: Int) = when (level) {
+        1 -> "Rookie"; 2 -> "Commuter"; 3 -> "Cruiser"; 4 -> "Racer"; else -> "Legend"
     }
 
     private fun computeStats(trips: List<Trip>): LifetimeStats {
-        val fmt = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
+        val fmt   = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
         val first = trips.minByOrNull { it.startTime }
         val memberSince = first?.let { fmt.format(Date(it.startTime)) } ?: fmt.format(Date())
 
-        val totalMs = trips.sumOf { (it.endTime ?: it.startTime) - it.startTime }
+        val totalMs    = trips.sumOf { (it.endTime ?: it.startTime) - it.startTime }
         val weeksActive = if (first != null)
             maxOf(1.0, (System.currentTimeMillis() - first.startTime) / (7.0 * 24 * 3_600_000))
         else 1.0
@@ -142,4 +243,17 @@ class ProfileViewModel @Inject constructor(
             topSpeedKmh       = ((trips.maxOfOrNull { it.topSpeed } ?: 0.0) * 3.6).toInt()
         )
     }
+
+    // ── Mutations (unchanged) ──────────────────────────────────────────────────
+
+    fun setAutoTracking(v: Boolean)           { viewModelScope.launch { prefs.setAutoTracking(v) } }
+    fun setBackgroundNotification(v: Boolean)  { viewModelScope.launch { prefs.setBackgroundNotification(v) } }
+    fun cycleSpeedUnit()    { viewModelScope.launch { prefs.setSpeedUnit(if (uiState.value?.settings?.speedUnit == "km/h") "mph" else "km/h") } }
+    fun setSpeedUnit(u: String)    { viewModelScope.launch { prefs.setSpeedUnit(u) } }
+    fun setDistanceUnit(u: String) { viewModelScope.launch { prefs.setDistanceUnit(u) } }
+    fun cycleDistanceUnit() { viewModelScope.launch { prefs.setDistanceUnit(if (uiState.value?.settings?.distanceUnit == "km") "miles" else "km") } }
+    fun deleteAllData()          { viewModelScope.launch { repository.deleteAllData() } }
+    fun signOut()                = authService.signOut()
+    fun deleteAccountAndAllData() { viewModelScope.launch { repository.deleteAllData(); authService.deleteAccount() } }
+
 }
