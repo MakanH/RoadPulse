@@ -76,6 +76,22 @@ class GroupService @Inject constructor(
             .update("memberUids", FieldValue.arrayRemove(currentUid)).await()
     }
 
+    /** Permanently deletes a group: all sessions, all location sub-docs, then the group doc itself. */
+    suspend fun disbandGroup(groupId: String): Result<Unit> = runCatching {
+        val groupRef = firestore.collection("groups").document(groupId)
+        val sessions = groupRef.collection("sessions").get().await()
+        for (sessionDoc in sessions.documents) {
+            val locations = sessionDoc.reference.collection("locations").get().await()
+            if (!locations.isEmpty) {
+                val batch = firestore.batch()
+                locations.documents.forEach { batch.delete(it.reference) }
+                batch.commit().await()
+            }
+            sessionDoc.reference.delete().await()
+        }
+        groupRef.delete().await()
+    }
+
     suspend fun startGroupSession(
         groupId: String,
         groupName: String,

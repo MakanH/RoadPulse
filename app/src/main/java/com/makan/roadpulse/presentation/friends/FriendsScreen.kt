@@ -63,9 +63,10 @@ import com.makan.roadpulse.presentation.theme.TealPrimary
 
 @Composable
 fun FriendsScreen(viewModel: FriendsViewModel = hiltViewModel()) {
-    val uiState     by viewModel.uiState.collectAsStateWithLifecycle()
-    val query       by viewModel.searchQuery.collectAsStateWithLifecycle()
-    val results     by viewModel.searchResults.collectAsStateWithLifecycle()
+    val uiState         by viewModel.uiState.collectAsStateWithLifecycle()
+    val query           by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val results         by viewModel.searchResults.collectAsStateWithLifecycle()
+    val localPendingUids by viewModel.localPendingUids.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -141,6 +142,7 @@ fun FriendsScreen(viewModel: FriendsViewModel = hiltViewModel()) {
                         results.forEachIndexed { index, user ->
                             val alreadyFriend = uiState.friends.any { it.uid == user.uid }
                             val pendingOut = uiState.outgoingRequests.any { it.toUid == user.uid }
+                                || user.uid in localPendingUids
                             if (!alreadyFriend) {
                                 SearchResultRow(
                                     user = user,

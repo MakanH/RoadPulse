@@ -4,12 +4,12 @@ import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import com.makan.roadpulse.data.service.NotificationService
 import com.makan.roadpulse.domain.model.FriendRequest
 import com.makan.roadpulse.domain.model.UserProfile
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -22,6 +22,22 @@ class FriendService @Inject constructor(
 ) {
     private val currentUid get() = auth.currentUser?.uid ?: ""
 
+    // ── User lookup ───────────────────────────────────────────────────────────
+
+    /** Fetch up to any number of user profiles, chunking to satisfy Firestore's 30-item `in` limit. */
+    suspend fun getUserProfiles(uids: List<String>): List<UserProfile> {
+        if (uids.isEmpty()) return emptyList()
+        return uids.chunked(30).flatMap { chunk ->
+            runCatching {
+                firestore.collection("users")
+                    .whereIn("uid", chunk)
+                    .get().await()
+                    .documents.mapNotNull { doc -> doc.data?.toUserProfile() }
+            }.getOrDefault(emptyList())
+        }
+    }
+
+    /** Search users by display name prefix. Throws on network error — callers should catch. */
     suspend fun searchUsers(query: String): List<UserProfile> {
         if (query.isBlank()) return emptyList()
         val end = query + ''
@@ -30,27 +46,21 @@ class FriendService @Inject constructor(
             firestore.collection("users").document(currentUid).get().await()
                 .get("friendIds") as? List<String>
         }.getOrNull() ?: emptyList()
-        return runCatching {
-            firestore.collection("users")
-                .whereGreaterThanOrEqualTo("displayName", query)
-                .whereLessThanOrEqualTo("displayName", end)
-                .get().await()
-                .documents.mapNotNull { doc ->
-                    val d = doc.data ?: return@mapNotNull null
-                    val uid = d["uid"] as? String ?: return@mapNotNull null
-                    if (uid == currentUid) return@mapNotNull null
-                    val visibility = d["visibility"] as? String ?: "everyone"
-                    if (visibility == "friends_only" && uid !in myFriendIds) return@mapNotNull null
-                    UserProfile(
-                        uid         = uid,
-                        displayName = d["displayName"] as? String ?: "",
-                        email       = d["email"] as? String ?: "",
-                        photoUrl    = d["photoUrl"] as? String,
-                        createdAt   = (d["createdAt"] as? Timestamp)?.toDate()?.time ?: 0L
-                    )
-                }
-        }.getOrDefault(emptyList())
+        return firestore.collection("users")
+            .whereGreaterThanOrEqualTo("displayName", query)
+            .whereLessThanOrEqualTo("displayName", end)
+            .get().await()
+            .documents.mapNotNull { doc ->
+                val d = doc.data ?: return@mapNotNull null
+                val uid = d["uid"] as? String ?: return@mapNotNull null
+                if (uid == currentUid) return@mapNotNull null
+                val visibility = d["visibility"] as? String ?: "everyone"
+                if (visibility == "friends_only" && uid !in myFriendIds) return@mapNotNull null
+                d.toUserProfile()
+            }
     }
+
+    // ── Friend requests ───────────────────────────────────────────────────────
 
     suspend fun sendFriendRequest(toUid: String): Result<Unit> = runCatching {
         val existing = firestore.collection("friendRequests")
@@ -157,6 +167,9 @@ class FriendService @Inject constructor(
             .update("status", "declined").await()
     }
 
+    // ── Friends list ──────────────────────────────────────────────────────────
+
+    /** Live friends list. Handles any number of friends by chunking Firestore `in` queries. */
     fun getFriends(): Flow<List<UserProfile>> = callbackFlow {
         val selfListener = firestore.collection("users").document(currentUid)
             .addSnapshotListener { snap, _ ->
@@ -166,22 +179,17 @@ class FriendService @Inject constructor(
                     trySend(emptyList())
                     return@addSnapshotListener
                 }
-                // Fetch each profile (Firestore 'in' supports up to 30 items)
-                firestore.collection("users")
-                    .whereIn("uid", friendIds.take(30))
-                    .get()
-                    .addOnSuccessListener { result ->
-                        trySend(result.documents.mapNotNull { doc ->
-                            val d = doc.data ?: return@mapNotNull null
-                            UserProfile(
-                                uid         = d["uid"] as? String ?: "",
-                                displayName = d["displayName"] as? String ?: "",
-                                email       = d["email"] as? String ?: "",
-                                photoUrl    = d["photoUrl"] as? String,
-                                createdAt   = (d["createdAt"] as? Timestamp)?.toDate()?.time ?: 0L
-                            )
-                        })
+                launch {
+                    val profiles = friendIds.chunked(30).flatMap { chunk ->
+                        runCatching {
+                            firestore.collection("users")
+                                .whereIn("uid", chunk)
+                                .get().await()
+                                .documents.mapNotNull { doc -> doc.data?.toUserProfile() }
+                        }.getOrDefault(emptyList())
                     }
+                    trySend(profiles)
+                }
             }
         awaitClose { selfListener.remove() }
     }
@@ -198,4 +206,14 @@ class FriendService @Inject constructor(
         )
         batch.commit().await()
     }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private fun Map<String, Any>.toUserProfile() = UserProfile(
+        uid         = this["uid"] as? String ?: "",
+        displayName = this["displayName"] as? String ?: "",
+        email       = this["email"] as? String ?: "",
+        photoUrl    = this["photoUrl"] as? String,
+        createdAt   = (this["createdAt"] as? Timestamp)?.toDate()?.time ?: 0L
+    )
 }

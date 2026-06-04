@@ -50,18 +50,32 @@ class FriendsViewModel @Inject constructor(
     private val _searchResults = MutableStateFlow<List<UserProfile>>(emptyList())
     val searchResults: StateFlow<List<UserProfile>> = _searchResults.asStateFlow()
 
+    // Optimistic pending set — updated immediately on tap to prevent double-sends
+    private val _localPendingUids = MutableStateFlow<Set<String>>(emptySet())
+    val localPendingUids: StateFlow<Set<String>> = _localPendingUids.asStateFlow()
+
     init {
         viewModelScope.launch {
             searchQuery.debounce(500).collect { query ->
-                _searchResults.value = if (query.isBlank()) emptyList()
-                else friendService.searchUsers(query)
+                if (query.isBlank()) {
+                    _searchResults.value = emptyList()
+                } else {
+                    try {
+                        _searchResults.value = friendService.searchUsers(query)
+                    } catch (e: Exception) {
+                        _errorEvent.tryEmit("Search failed — check your connection")
+                    }
+                }
             }
         }
     }
 
     fun sendRequest(toUid: String) {
+        if (toUid in _localPendingUids.value) return
+        _localPendingUids.value = _localPendingUids.value + toUid
         viewModelScope.launch {
             friendService.sendFriendRequest(toUid).onFailure {
+                _localPendingUids.value = _localPendingUids.value - toUid
                 _errorEvent.tryEmit("Failed to send friend request")
             }
         }

@@ -53,6 +53,9 @@ class LocationTrackingService : Service() {
     private var cooldownJob: Job? = null
     private var totalDistance = 0.0
     private var lastLocation: Location? = null
+    // Tracks the last group session we saved to prefs, to avoid redundant writes
+    @Volatile private var savedBroadcastGroupId: String? = null
+    @Volatile private var savedBroadcastSessionId: String? = null
 
     // Cached preference values — updated via ongoing collection
     @Volatile private var cachedShareLiveLocation = true
@@ -103,6 +106,12 @@ class LocationTrackingService : Service() {
             val gid = broadcastGroupId
             val sid = broadcastSessionId
             if (gid != null && sid != null && cachedShareLiveLocation) {
+                // Persist session info so we can clean up on app restart after a crash
+                if (gid != savedBroadcastGroupId || sid != savedBroadcastSessionId) {
+                    savedBroadcastGroupId   = gid
+                    savedBroadcastSessionId = sid
+                    serviceScope.launch { prefs.saveBroadcastSession(gid, sid) }
+                }
                 serviceScope.launch {
                     val pt = LocationPoint(
                         id = 0L, tripId = 0L,
@@ -114,6 +123,11 @@ class LocationTrackingService : Service() {
                     )
                     groupService.pushMyLocation(gid, sid, pt, location.bearing)
                 }
+            } else if (gid == null && savedBroadcastGroupId != null) {
+                // Broadcast was stopped mid-session — clear saved session
+                savedBroadcastGroupId   = null
+                savedBroadcastSessionId = null
+                serviceScope.launch { prefs.clearBroadcastSession() }
             }
         }
     }
@@ -125,6 +139,15 @@ class LocationTrackingService : Service() {
         // Keep preference caches live
         serviceScope.launch { prefs.shareLiveLocation.collect { cachedShareLiveLocation = it } }
         serviceScope.launch { prefs.gpsAccuracy.collect { cachedGpsAccuracy = it } }
+        // Clean up any stale group broadcast left over from a previous app crash
+        serviceScope.launch {
+            val savedGid = prefs.broadcastGroupId.first()
+            val savedSid = prefs.broadcastSessionId.first()
+            if (!savedGid.isNullOrBlank() && !savedSid.isNullOrBlank() && broadcastGroupId == null) {
+                groupService.setMemberInactive(savedGid, savedSid)
+                prefs.clearBroadcastSession()
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -169,6 +192,12 @@ class LocationTrackingService : Service() {
                 lastLocation = null
             }
             _state.value = TrackingState()
+            // Clear any persisted broadcast session on clean shutdown
+            if (savedBroadcastGroupId != null) {
+                savedBroadcastGroupId   = null
+                savedBroadcastSessionId = null
+                prefs.clearBroadcastSession()
+            }
         }
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()

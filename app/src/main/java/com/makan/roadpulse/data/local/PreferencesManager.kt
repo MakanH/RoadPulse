@@ -43,6 +43,9 @@ class PreferencesManager @Inject constructor(
         private val KEY_ONBOARDING_NAVIGATE = booleanPreferencesKey("onboarding_navigate_seen")
         private val KEY_ONBOARDING_BOARD    = booleanPreferencesKey("onboarding_board_seen")
         private val KEY_ONBOARDING_PROFILE  = booleanPreferencesKey("onboarding_profile_seen")
+        // Active group broadcast session (persisted for stale-cleanup on restart)
+        private val KEY_BROADCAST_GROUP_ID   = stringPreferencesKey("broadcast_group_id")
+        private val KEY_BROADCAST_SESSION_ID = stringPreferencesKey("broadcast_session_id")
     }
 
     // ── Flows ─────────────────────────────────────────────────────────────────
@@ -64,6 +67,8 @@ class PreferencesManager @Inject constructor(
     val onboardingNavigateSeen:    Flow<Boolean> = context.dataStore.data.map { it[KEY_ONBOARDING_NAVIGATE] ?: false }
     val onboardingBoardSeen:       Flow<Boolean> = context.dataStore.data.map { it[KEY_ONBOARDING_BOARD]    ?: false }
     val onboardingProfileSeen:     Flow<Boolean> = context.dataStore.data.map { it[KEY_ONBOARDING_PROFILE]  ?: false }
+    val broadcastGroupId:          Flow<String?> = context.dataStore.data.map { it[KEY_BROADCAST_GROUP_ID] }
+    val broadcastSessionId:        Flow<String?> = context.dataStore.data.map { it[KEY_BROADCAST_SESSION_ID] }
 
     // ── Setters ───────────────────────────────────────────────────────────────
 
@@ -84,4 +89,17 @@ class PreferencesManager @Inject constructor(
     suspend fun setOnboardingNavigateSeen() { context.dataStore.edit { it[KEY_ONBOARDING_NAVIGATE] = true } }
     suspend fun setOnboardingBoardSeen()    { context.dataStore.edit { it[KEY_ONBOARDING_BOARD]    = true } }
     suspend fun setOnboardingProfileSeen()  { context.dataStore.edit { it[KEY_ONBOARDING_PROFILE]  = true } }
+
+    suspend fun saveBroadcastSession(groupId: String, sessionId: String) {
+        context.dataStore.edit {
+            it[KEY_BROADCAST_GROUP_ID]   = groupId
+            it[KEY_BROADCAST_SESSION_ID] = sessionId
+        }
+    }
+    suspend fun clearBroadcastSession() {
+        context.dataStore.edit {
+            it.remove(KEY_BROADCAST_GROUP_ID)
+            it.remove(KEY_BROADCAST_SESSION_ID)
+        }
+    }
 }
