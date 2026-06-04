@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
@@ -283,6 +284,7 @@ fun MapScreen(
 
 // ── Heatmap toggle pill ───────────────────────────────────────────────────────
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HeatmapToggleButton(
     isHeatmapMode: Boolean,
@@ -295,9 +297,10 @@ private fun HeatmapToggleButton(
                   else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
 
     Surface(
-        modifier      = modifier.clickable { onToggle() },
-        shape         = RoundedCornerShape(20.dp),
-        color         = bgColor,
+        onClick         = onToggle,
+        modifier        = modifier,
+        shape           = RoundedCornerShape(20.dp),
+        color           = bgColor,
         shadowElevation = 4.dp
     ) {
         Row(
@@ -345,7 +348,7 @@ private fun HeatmapLegend(speedUnit: String, modifier: Modifier = Modifier) {
 
     Surface(
         modifier = modifier
-            .width(108.dp)
+            .width(90.dp)
             .clickable { expanded = !expanded },
         shape    = RoundedCornerShape(8.dp),
         color    = Color(0xFF1A1A2E).copy(alpha = 0.85f)
