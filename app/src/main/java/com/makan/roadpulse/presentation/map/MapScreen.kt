@@ -162,16 +162,16 @@ fun MapScreen(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                NotificationBellButton(
-                    hasUnread = unreadCount > 0,
-                    onClick   = { showNotifSheet = true }
-                )
                 if (successState != null) {
                     HeatmapToggleButton(
                         isHeatmapMode = isHeatmapMode,
                         onToggle      = viewModel::toggleHeatmap
                     )
                 }
+                NotificationBellButton(
+                    hasUnread = unreadCount > 0,
+                    onClick   = { showNotifSheet = true }
+                )
             }
         }
 
@@ -344,16 +344,17 @@ private fun HeatmapLegend(speedUnit: String, modifier: Modifier = Modifier) {
     var expanded by remember { mutableStateOf(true) }
 
     Surface(
-        modifier = modifier.clickable { expanded = !expanded },
+        modifier = modifier
+            .width(108.dp)
+            .clickable { expanded = !expanded },
         shape    = RoundedCornerShape(8.dp),
-        color    = Color.Black.copy(alpha = 0.58f)
+        color    = Color(0xFF1A1A2E).copy(alpha = 0.85f)
     ) {
-        Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+        Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
             // Header: "Legend" label + collapse/expand arrow
             Row(
                 verticalAlignment      = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text("Legend", fontSize = 10.sp, color = Color.White.copy(alpha = 0.7f))
                 Spacer(Modifier.width(12.dp))
@@ -370,8 +371,8 @@ private fun HeatmapLegend(speedUnit: String, modifier: Modifier = Modifier) {
                 exit    = shrinkVertically() + fadeOut()
             ) {
                 Column(
-                    modifier            = Modifier.padding(top = 6.dp),
-                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                    modifier            = Modifier.padding(top = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     labels.forEachIndexed { i, label ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
