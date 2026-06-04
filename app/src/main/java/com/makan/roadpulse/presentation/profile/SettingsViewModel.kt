@@ -3,6 +3,7 @@ package com.makan.roadpulse.presentation.profile
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
@@ -13,6 +14,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException
 import com.makan.roadpulse.data.local.PreferencesManager
 import com.makan.roadpulse.data.service.AuthService
+import com.makan.roadpulse.data.service.LocationTrackingService
 import com.makan.roadpulse.data.service.NominatimGeocodingService
 import com.makan.roadpulse.data.service.UserProfileService
 import com.makan.roadpulse.domain.repository.TripRepository
@@ -64,7 +66,21 @@ class SettingsViewModel @Inject constructor(
     fun cycleMapStyle()                          { viewModelScope.launch {
         prefs.setMapStyle(if (prefs.mapStyle.first() == "dark") "light" else "dark")
     }}
-    fun setAutoTracking(v: Boolean)              { viewModelScope.launch { prefs.setAutoTracking(v) } }
+    fun setAutoTracking(v: Boolean) {
+        viewModelScope.launch {
+            prefs.setAutoTracking(v)
+            if (v) {
+                val intent = LocationTrackingService.startIntent(context)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
+                }
+            } else {
+                context.startService(LocationTrackingService.stopIntent(context))
+            }
+        }
+    }
     fun cycleGpsAccuracy()                       { viewModelScope.launch {
         prefs.setGpsAccuracy(if (prefs.gpsAccuracy.first() == "high") "balanced" else "high")
     }}

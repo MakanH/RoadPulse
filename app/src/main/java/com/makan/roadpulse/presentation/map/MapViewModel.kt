@@ -1,7 +1,5 @@
 package com.makan.roadpulse.presentation.map
 
-import android.content.Context
-import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.makan.roadpulse.data.service.GroupService
@@ -105,19 +103,6 @@ class MapViewModel @Inject constructor(
                 }
             }
         }
-    }
-
-    fun startTracking(context: Context) {
-        val intent = LocationTrackingService.startIntent(context)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(intent)
-        } else {
-            context.startService(intent)
-        }
-    }
-
-    fun stopTracking(context: Context) {
-        context.startService(LocationTrackingService.stopIntent(context))
     }
 
     fun renameTrip(tripId: Long, newName: String) {

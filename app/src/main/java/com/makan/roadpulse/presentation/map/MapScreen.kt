@@ -1,5 +1,10 @@
 package com.makan.roadpulse.presentation.map
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -40,7 +45,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -75,7 +79,6 @@ fun MapScreen(
     val onboardingSeen by onboardingVm.mapSeen.collectAsStateWithLifecycle(true)
     val notifications  by notifViewModel.notifications.collectAsStateWithLifecycle()
     val unreadCount    by notifViewModel.unreadCount.collectAsStateWithLifecycle()
-    val context = LocalContext.current
     var renameTarget by remember { mutableStateOf<Trip?>(null) }
     var recenterTrigger by remember { mutableStateOf(0) }
     var showNotifSheet by remember { mutableStateOf(false) }
@@ -127,17 +130,19 @@ fun MapScreen(
                         )
                     }
 
-                    // Bottom-left: speed legend (heatmap mode) stacked above recenter FAB
-                    Column(
-                        modifier = Modifier.align(Alignment.BottomStart).padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        horizontalAlignment = Alignment.Start
-                    ) {
-                        if (isHeatmapMode) {
-                            HeatmapLegend(speedUnit = LocalUnitPrefs.current.speedUnit)
-                        }
-                        RecenterFab(onClick = { recenterTrigger++ })
+                    // Bottom-left: collapsible speed legend (heatmap mode only)
+                    if (isHeatmapMode) {
+                        HeatmapLegend(
+                            speedUnit = LocalUnitPrefs.current.speedUnit,
+                            modifier  = Modifier.align(Alignment.BottomStart).padding(12.dp)
+                        )
                     }
+
+                    // Bottom-right: recenter FAB
+                    RecenterFab(
+                        onClick  = { recenterTrigger++ },
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
+                    )
                 } else {
                     Box(
                         modifier = Modifier
@@ -146,17 +151,6 @@ fun MapScreen(
                         contentAlignment = Alignment.Center
                     ) { CircularProgressIndicator(color = TealPrimary) }
                 }
-
-                // FAB — always visible when permission granted
-                val isTracking = successState?.trackingState?.isTracking ?: false
-                TrackingFab(
-                    isTracking = isTracking,
-                    onToggle = {
-                        if (isTracking) viewModel.stopTracking(context)
-                        else viewModel.startTracking(context)
-                    },
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
-                )
             }
 
             // Top-right: notification bell + heatmap toggle stacked
@@ -347,38 +341,54 @@ private fun HeatmapLegend(speedUnit: String, modifier: Modifier = Modifier) {
     else
         listOf("< 30", "30–60", "60–90", "90–120", "120–150", "150–180", "180+")
     val unitLabel = if (isMph) "mph" else "km/h"
+    var expanded by remember { mutableStateOf(true) }
 
     Surface(
-        modifier = modifier,
+        modifier = modifier.clickable { expanded = !expanded },
         shape    = RoundedCornerShape(8.dp),
         color    = Color.Black.copy(alpha = 0.58f)
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(3.dp)
-        ) {
-            labels.forEachIndexed { i, label ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(LEGEND_COLORS[i])
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        text     = label,
-                        fontSize = 10.sp,
-                        color    = Color.White.copy(alpha = 0.85f)
-                    )
+        Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+            // Header: "Legend" label + collapse/expand arrow
+            Row(
+                verticalAlignment      = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Legend", fontSize = 10.sp, color = Color.White.copy(alpha = 0.7f))
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    text     = if (expanded) "▼" else "▲",
+                    fontSize = 9.sp,
+                    color    = Color.White.copy(alpha = 0.5f)
+                )
+            }
+
+            AnimatedVisibility(
+                visible = expanded,
+                enter   = expandVertically() + fadeIn(),
+                exit    = shrinkVertically() + fadeOut()
+            ) {
+                Column(
+                    modifier            = Modifier.padding(top = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    labels.forEachIndexed { i, label ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(LEGEND_COLORS[i])
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(label, fontSize = 10.sp, color = Color.White.copy(alpha = 0.85f))
+                        }
+                    }
+                    Spacer(Modifier.height(2.dp))
+                    Text(unitLabel, fontSize = 9.sp, color = Color.White.copy(alpha = 0.45f))
                 }
             }
-            Spacer(Modifier.height(2.dp))
-            Text(
-                text     = unitLabel,
-                fontSize = 9.sp,
-                color    = Color.White.copy(alpha = 0.45f)
-            )
         }
     }
 }

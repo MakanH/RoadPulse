@@ -1,5 +1,6 @@
 package com.makan.roadpulse
 
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -11,8 +12,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.*
+import androidx.lifecycle.lifecycleScope
 import com.makan.roadpulse.data.local.PreferencesManager
 import com.makan.roadpulse.data.service.AuthService
+import com.makan.roadpulse.data.service.LocationTrackingService
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import com.makan.roadpulse.navigation.NavGraph
 import com.makan.roadpulse.navigation.Screen
 import com.makan.roadpulse.presentation.auth.EmailVerificationScreen
@@ -41,6 +46,19 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // Auto-start location tracking if the preference is enabled (default: true).
+        // The service is idempotent — calling start when already running just re-delivers
+        // the intent and is harmless. It stops itself if location permission is missing.
+        lifecycleScope.launch {
+            if (preferencesManager.autoTracking.first()) {
+                val intent = LocationTrackingService.startIntent(this@MainActivity)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(intent)
+                } else {
+                    startService(intent)
+                }
+            }
+        }
         setContent {
             val speedUnit         by preferencesManager.speedUnit.collectAsStateWithLifecycle(initialValue = "km/h")
             val distanceUnit      by preferencesManager.distanceUnit.collectAsStateWithLifecycle(initialValue = "km")
