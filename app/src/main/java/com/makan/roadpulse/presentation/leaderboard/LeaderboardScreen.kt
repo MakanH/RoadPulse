@@ -171,7 +171,7 @@ private fun BoardContent(
             )
         }
         item { Spacer(Modifier.height(16.dp)) }
-        if (podium.size >= 3) {
+        if (podium.isNotEmpty()) {
             item { PodiumSection(podium = podium) }
         }
         item { Spacer(Modifier.height(14.dp)) }
@@ -302,7 +302,9 @@ private fun MetricSegmentedControl(
 
 @Composable
 private fun PodiumSection(podium: List<LeaderboardViewModel.SocialEntry>) {
-    val p1 = podium[0]; val p2 = podium[1]; val p3 = podium[2]
+    // Renders with 1, 2, or 3 distinct drivers. 1st always stays centered; the 2nd/3rd
+    // slots collapse to balancing spacers when there aren't enough real people yet.
+    val p1 = podium.getOrNull(0); val p2 = podium.getOrNull(1); val p3 = podium.getOrNull(2)
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
@@ -328,39 +330,49 @@ private fun PodiumSection(podium: List<LeaderboardViewModel.SocialEntry>) {
                 modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter),
                 verticalAlignment = Alignment.Bottom
             ) {
-                // 2nd place
-                PodiumColumn(
-                    entry         = p2,
-                    medalColor    = Silver,
-                    medalDark     = SilverDark,
-                    pedestalH     = 76,
-                    avatarSize    = 58,
-                    valueSize     = 19,
-                    showCrown     = false,
-                    modifier      = Modifier.weight(1f)
-                )
+                // 2nd place (left) — spacer keeps 1st centered when absent
+                if (p2 != null) {
+                    PodiumColumn(
+                        entry         = p2,
+                        medalColor    = Silver,
+                        medalDark     = SilverDark,
+                        pedestalH     = 76,
+                        avatarSize    = 58,
+                        valueSize     = 19,
+                        showCrown     = false,
+                        modifier      = Modifier.weight(1f)
+                    )
+                } else {
+                    Spacer(Modifier.weight(1f))
+                }
                 // 1st place (center, wider)
-                PodiumColumn(
-                    entry         = p1,
-                    medalColor    = Gold,
-                    medalDark     = GoldDark,
-                    pedestalH     = 104,
-                    avatarSize    = 72,
-                    valueSize     = 24,
-                    showCrown     = true,
-                    modifier      = Modifier.weight(1.15f)
-                )
-                // 3rd place
-                PodiumColumn(
-                    entry         = p3,
-                    medalColor    = Bronze,
-                    medalDark     = BronzeDark,
-                    pedestalH     = 60,
-                    avatarSize    = 58,
-                    valueSize     = 19,
-                    showCrown     = false,
-                    modifier      = Modifier.weight(1f)
-                )
+                if (p1 != null) {
+                    PodiumColumn(
+                        entry         = p1,
+                        medalColor    = Gold,
+                        medalDark     = GoldDark,
+                        pedestalH     = 104,
+                        avatarSize    = 72,
+                        valueSize     = 24,
+                        showCrown     = true,
+                        modifier      = Modifier.weight(1.15f)
+                    )
+                }
+                // 3rd place (right) — spacer keeps 1st centered when absent
+                if (p3 != null) {
+                    PodiumColumn(
+                        entry         = p3,
+                        medalColor    = Bronze,
+                        medalDark     = BronzeDark,
+                        pedestalH     = 60,
+                        avatarSize    = 58,
+                        valueSize     = 19,
+                        showCrown     = false,
+                        modifier      = Modifier.weight(1f)
+                    )
+                } else {
+                    Spacer(Modifier.weight(1f))
+                }
             }
         }
     }
