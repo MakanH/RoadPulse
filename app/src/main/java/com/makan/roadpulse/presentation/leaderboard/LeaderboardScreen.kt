@@ -310,22 +310,11 @@ private fun PodiumSection(podium: List<LeaderboardViewModel.SocialEntry>) {
             .fillMaxWidth()
             .padding(horizontal = 8.dp)
     ) {
-        val w = maxWidth
-        // Radial glow behind podium
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(220.dp)
-                .drawBehind {
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            listOf(Gold.copy(alpha = 0.18f), Green.copy(alpha = 0.06f), Color.Transparent),
-                            center = Offset(size.width / 2, size.height * 0.4f),
-                            radius = size.width * 0.55f
-                        )
-                    )
-                }
-        ) {
+        // Height wraps the tallest (1st-place) column — a fixed height would squeeze the
+        // budget and collapse 1st's pedestal, since the Column gives its last child (the
+        // pedestal) only the leftover space. Each avatar carries its own glow (no single
+        // background halo behind the whole podium).
+        Box(Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter),
                 verticalAlignment = Alignment.Bottom
@@ -395,42 +384,64 @@ private fun PodiumColumn(
         verticalArrangement = Arrangement.Bottom
     ) {
         if (showCrown) {
-            Text("👑", fontSize = 18.sp)
-            Spacer(Modifier.height(2.dp))
-        }
-
-        // Avatar with medal ring + rank badge
-        Box(
-            modifier            = Modifier.size((avatarSize + 14).dp),
-            contentAlignment    = Alignment.TopCenter
-        ) {
-            // Ring
+            // Minimal 3-peak crown (drawn, not an emoji)
             Box(
                 Modifier
-                    .size((avatarSize + 6).dp)
-                    .clip(CircleShape)
-                    .background(medalColor)
-                    .align(Alignment.TopCenter)
+                    .size(width = 22.dp, height = 14.dp)
+                    .drawBehind {
+                        val cw = size.width; val ch = size.height
+                        val crown = Path().apply {
+                            moveTo(0f, ch)
+                            lineTo(cw * 0.04f, ch * 0.28f)
+                            lineTo(cw * 0.28f, ch * 0.60f)
+                            lineTo(cw * 0.50f, ch * 0.04f)
+                            lineTo(cw * 0.72f, ch * 0.60f)
+                            lineTo(cw * 0.96f, ch * 0.28f)
+                            lineTo(cw, ch)
+                            close()
+                        }
+                        drawPath(crown, Gold)
+                    }
             )
-            // Avatar
-            InitialsAvatar(
-                name     = entry.displayName,
-                size     = avatarSize.dp,
-                modifier = Modifier.align(Alignment.TopCenter).offset(y = 3.dp)
-            )
-            // Rank badge
+            Spacer(Modifier.height(3.dp))
+        }
+
+        // Avatar with medal ring, per-avatar glow, and rank badge.
+        // Container is NOT clipped so the glow and the bottom badge can overflow.
+        Box(
+            modifier = Modifier
+                .size((avatarSize + 6).dp)
+                .drawBehind {
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            listOf(medalColor.copy(alpha = 0.55f), Color.Transparent),
+                            center = center,
+                            radius = size.minDimension * 0.75f
+                        ),
+                        radius = size.minDimension * 0.75f,
+                        center = center
+                    )
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            // Ring (medal color)
+            Box(Modifier.fillMaxSize().clip(CircleShape).background(medalColor))
+            // Avatar (centered → the ring shows as a thin band around it)
+            InitialsAvatar(name = entry.displayName, size = avatarSize.dp)
+            // Rank badge — centered on the avatar's bottom edge
             Box(
                 modifier = Modifier
-                    .size(20.dp)
+                    .size((avatarSize * 0.30f).dp)
                     .align(Alignment.BottomCenter)
+                    .offset(y = (avatarSize * 0.10f).dp)
                     .clip(CircleShape)
                     .background(medalColor)
-                    .border(1.5.dp, AppBg, CircleShape),
+                    .border(2.dp, AppBg, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     "${entry.rank}",
-                    fontSize   = 9.sp,
+                    fontSize   = (avatarSize * 0.16f).sp,
                     fontWeight = FontWeight.Black,
                     color      = Color.Black
                 )
@@ -456,7 +467,7 @@ private fun PodiumColumn(
             fontSize   = valueSize.sp,
             lineHeight = valueSize.sp,
             fontWeight = FontWeight.Bold,
-            color      = if (entry.rank == 1) Gold else medalColor,
+            color      = if (entry.rank == 1) Gold else TxtPrimary,
             maxLines   = 1
         )
 

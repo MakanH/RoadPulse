@@ -2,6 +2,7 @@ package com.makan.roadpulse.presentation.map
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -71,12 +73,20 @@ fun StatCardsRow(stats: TodayStats, modifier: Modifier = Modifier) {
 
 @Composable
 private fun StatCard(label: String, value: String, unit: String, modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(10.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    // Glossy raised card: a top-lit vertical gradient plus a hairline highlight so it
+    // reads as a shiny panel sitting above the app background rather than blending in.
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color(0xFF343A5A), Color(0xFF272C45))
+                )
+            )
+            .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(10.dp))
+            .padding(10.dp)
     ) {
-        Column(modifier = Modifier.padding(10.dp)) {
+        Column {
             Text(
                 text = label,
                 fontSize = 11.sp,
