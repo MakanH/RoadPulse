@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -52,12 +53,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.makan.roadpulse.presentation.components.OnboardingPopup
+import com.makan.roadpulse.presentation.components.RobotoCondensedBold
 import com.makan.roadpulse.presentation.onboarding.OnboardingViewModel
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -331,8 +334,8 @@ private fun PodiumSection(podium: List<LeaderboardViewModel.SocialEntry>) {
                     medalColor    = Silver,
                     medalDark     = SilverDark,
                     pedestalH     = 76,
-                    avatarSize    = 48,
-                    valueSize     = 18,
+                    avatarSize    = 58,
+                    valueSize     = 19,
                     showCrown     = false,
                     modifier      = Modifier.weight(1f)
                 )
@@ -342,7 +345,7 @@ private fun PodiumSection(podium: List<LeaderboardViewModel.SocialEntry>) {
                     medalColor    = Gold,
                     medalDark     = GoldDark,
                     pedestalH     = 104,
-                    avatarSize    = 60,
+                    avatarSize    = 72,
                     valueSize     = 24,
                     showCrown     = true,
                     modifier      = Modifier.weight(1.15f)
@@ -353,8 +356,8 @@ private fun PodiumSection(podium: List<LeaderboardViewModel.SocialEntry>) {
                     medalColor    = Bronze,
                     medalDark     = BronzeDark,
                     pedestalH     = 60,
-                    avatarSize    = 48,
-                    valueSize     = 18,
+                    avatarSize    = 58,
+                    valueSize     = 19,
                     showCrown     = false,
                     modifier      = Modifier.weight(1f)
                 )
@@ -428,17 +431,19 @@ private fun PodiumColumn(
         val displayLabel = if (entry.isCurrentUser) "You" else entry.displayName.split(" ").first()
         Text(
             text       = displayLabel,
-            fontSize   = 12.sp,
-            fontWeight = FontWeight.Medium,
+            fontSize   = 14.sp,
+            fontWeight = FontWeight.Bold,
             color      = if (entry.isCurrentUser) Green else TxtPrimary,
             maxLines   = 1
         )
 
-        // Value
+        // Value (condensed numerals)
         Text(
             text       = entry.value,
+            fontFamily = RobotoCondensedBold,
             fontSize   = valueSize.sp,
-            fontWeight = FontWeight.Black,
+            lineHeight = valueSize.sp,
+            fontWeight = FontWeight.Bold,
             color      = if (entry.rank == 1) Gold else medalColor,
             maxLines   = 1
         )
@@ -453,13 +458,14 @@ private fun PodiumColumn(
                 .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
                 .background(Brush.verticalGradient(listOf(medalColor.copy(alpha = 0.9f), medalDark)))
         ) {
-            // Faded rank number inside pedestal
+            // Faded rank number inside pedestal (condensed)
             Text(
-                text     = "${entry.rank}",
-                fontSize = (pedestalH * 0.65).sp,
-                fontWeight = FontWeight.Black,
-                color    = Color.White.copy(alpha = 0.12f),
-                modifier = Modifier.align(Alignment.Center)
+                text       = "${entry.rank}",
+                fontFamily = RobotoCondensedBold,
+                fontSize   = 26.sp,
+                fontWeight = FontWeight.Bold,
+                color      = Color.Black.copy(alpha = 0.28f),
+                modifier   = Modifier.align(Alignment.Center)
             )
             // Diagonal shine
             Box(
@@ -632,13 +638,15 @@ private fun RankedRow(
         modifier            = modifier.fillMaxWidth().then(bgModifier).padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment   = Alignment.CenterVertically
     ) {
-        // Rank number
+        // Rank number (condensed)
         Text(
             "${entry.rank}",
-            fontSize   = 16.sp,
-            fontWeight = FontWeight.Black,
+            fontFamily = RobotoCondensedBold,
+            fontSize   = 17.sp,
+            fontWeight = FontWeight.Bold,
             color      = if (entry.isCurrentUser) Green else TxtDimmer,
-            modifier   = Modifier.width(24.dp)
+            textAlign  = TextAlign.Center,
+            modifier   = Modifier.width(22.dp)
         )
         Spacer(Modifier.width(10.dp))
 
@@ -670,12 +678,16 @@ private fun RankedRow(
 
         Spacer(Modifier.width(8.dp))
 
-        // Value + trend pill
-        Column(horizontalAlignment = Alignment.End) {
+        // Value + trend pill (condensed numerals, stacked)
+        Column(
+            horizontalAlignment = Alignment.End,
+            modifier            = Modifier.widthIn(min = 64.dp)
+        ) {
             Text(
                 entry.value,
-                fontSize   = 14.sp,
-                fontWeight = FontWeight.Black,
+                fontFamily = RobotoCondensedBold,
+                fontSize   = 16.sp,
+                fontWeight = FontWeight.Bold,
                 color      = TxtPrimary,
                 maxLines   = 1
             )

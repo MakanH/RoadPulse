@@ -166,6 +166,18 @@ class LeaderboardViewModel @Inject constructor(
                 )
             }
 
+        // Dedupe by driver: each person appears once per metric with their aggregate /
+        // best value, so the current user can't repeat across the podium and ranks.
+        val byUid = workingStats.groupBy { it.uid }
+        val speedStats = byUid.values.map { trips -> trips.maxByOrNull { it.avgSpeed }!! }
+        val distStats  = byUid.values.map { trips ->
+            trips.maxByOrNull { it.distanceKm }!!.copy(distanceKm = trips.sumOf { it.distanceKm })
+        }
+        val durStats   = byUid.values.map { trips ->
+            trips.maxByOrNull { it.durationSeconds }!!
+                .copy(durationSeconds = trips.sumOf { it.durationSeconds })
+        }
+
         val mostActiveFriend = workingStats
             .filter { it.uid != uid }
             .groupBy { it.uid }.mapValues { it.value.size }
@@ -188,9 +200,9 @@ class LeaderboardViewModel @Inject constructor(
         return SocialStatsData(
             isLoading             = false,
             hasFriends            = hasFriends,
-            bySpeed               = workingStats.sortedByDescending { it.avgSpeed }.take(10).toEntries { fmtSpeed(it.avgSpeed) },
-            byDistance            = workingStats.sortedByDescending { it.distanceKm }.take(10).toEntries { fmtDist(it.distanceKm) },
-            byDuration            = workingStats.sortedByDescending { it.durationSeconds }.take(10).toEntries { fmtDur(it.durationSeconds) },
+            bySpeed               = speedStats.sortedByDescending { it.avgSpeed }.take(10).toEntries { fmtSpeed(it.avgSpeed) },
+            byDistance            = distStats.sortedByDescending { it.distanceKm }.take(10).toEntries { fmtDist(it.distanceKm) },
+            byDuration            = durStats.sortedByDescending { it.durationSeconds }.take(10).toEntries { fmtDur(it.durationSeconds) },
             mostActiveFriend      = mostActiveFriend,
             myTotalKm             = myTotalKm,
             nextMilestoneName     = next.first,

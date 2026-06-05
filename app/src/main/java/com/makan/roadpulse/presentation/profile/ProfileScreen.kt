@@ -56,6 +56,7 @@ import coil.compose.AsyncImage
 import com.makan.roadpulse.domain.model.Group
 import com.makan.roadpulse.domain.model.UserProfile
 import com.makan.roadpulse.presentation.components.OnboardingPopup
+import com.makan.roadpulse.presentation.components.RobotoCondensedBold
 import com.makan.roadpulse.presentation.leaderboard.InitialsAvatar
 import com.makan.roadpulse.presentation.leaderboard.TrendPill
 import com.makan.roadpulse.presentation.leaderboard.YouTag
@@ -158,8 +159,8 @@ private fun IdentityCard(
     modifier: Modifier = Modifier
 ) {
     val xpProgress = if (state.xpMax > 0) state.xpCurrent.toFloat() / state.xpMax else 0f
-    val ringSize   = 88.dp
-    val avatarSize = 72.dp
+    val ringSize   = 96.dp
+    val avatarSize = 84.dp
     // banner = 90dp; avatar overlaps 44dp into banner
     val bannerSectionH = 90.dp + 44.dp  // 134dp total
 
@@ -220,13 +221,15 @@ private fun IdentityCard(
                     } else {
                         InitialsAvatar(name = state.displayName, size = avatarSize)
                     }
-                    // Level badge
+                    // Level badge — green gradient pill at the avatar's bottom edge,
+                    // ringed by a card-bg border so it reads as a separate chip.
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
-                            .offset(y = 2.dp)
+                            .offset(y = (-2).dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(GreenDeep)
+                            .background(Brush.horizontalGradient(listOf(GreenDeep, Green)))
+                            .border(2.dp, CardBg, RoundedCornerShape(8.dp))
                             .padding(horizontal = 7.dp, vertical = 2.dp)
                     ) {
                         Text(
@@ -323,28 +326,37 @@ private fun RouteBannerDecoration() {
     }
 }
 
+/**
+ * Clean concentric XP ring. Mirrors an SVG with two circles at cx=50 cy=50 r=45 in a
+ * 0 0 100 100 viewBox, strokeWidth 5: a faint full track plus a green progress arc that
+ * starts at 12 o'clock (rotate -90°) and sweeps clockwise by the XP fraction.
+ */
 @Composable
 private fun XpRing(progress: Float, size: Dp) {
     Canvas(modifier = Modifier.size(size)) {
-        val stroke = 5.dp.toPx()
-        val inset  = stroke / 2
-        val arcSz  = Size(this.size.width - stroke, this.size.height - stroke)
-        val topLeft = Offset(inset, inset)
+        val s        = this.size.minDimension
+        val stroke   = s * 0.05f          // strokeWidth 5 of 100
+        val diameter = s * 0.90f          // r = 45 of 100
+        val inset    = (s - diameter) / 2 // = 0.05 * s
+        val topLeft  = Offset(inset, inset)
+        val arcSz    = Size(diameter, diameter)
 
+        // Track circle
         drawArc(
-            color      = Color.White.copy(alpha = 0.1f),
-            startAngle = 135f,
-            sweepAngle = 270f,
+            color      = Color.White.copy(alpha = 0.08f),
+            startAngle = 0f,
+            sweepAngle = 360f,
             useCenter  = false,
-            style      = Stroke(stroke, cap = StrokeCap.Round),
+            style      = Stroke(stroke),
             topLeft    = topLeft,
             size       = arcSz
         )
-        if (progress > 0.01f) {
+        // Progress circle (rotated -90° → starts at top, clockwise)
+        if (progress > 0.001f) {
             drawArc(
                 color      = Color(0xFF2ED391),
-                startAngle = 135f,
-                sweepAngle = 270f * progress.coerceIn(0f, 1f),
+                startAngle = -90f,
+                sweepAngle = 360f * progress.coerceIn(0f, 1f),
                 useCenter  = false,
                 style      = Stroke(stroke, cap = StrokeCap.Round),
                 topLeft    = topLeft,
@@ -485,14 +497,12 @@ private fun FriendsCard(
             }
         }
 
-        // Divider
-        Box(Modifier.fillMaxWidth().height(1.dp).background(Hairline))
-
-        // Mini leaderboard
-        leaderboard.forEachIndexed { index, entry ->
-            FriendLbRow(entry = entry, index = index)
-            if (index < leaderboard.lastIndex) {
-                Box(Modifier.fillMaxWidth().height(1.dp).background(Hairline))
+        // Mini leaderboard — single top border above the whole list, no row dividers
+        Column(Modifier.fillMaxWidth()) {
+            Box(Modifier.fillMaxWidth().height(1.dp).background(Hairline))
+            Spacer(Modifier.height(6.dp))
+            leaderboard.forEachIndexed { index, entry ->
+                FriendLbRow(entry = entry, index = index)
             }
         }
     }
@@ -504,28 +514,29 @@ private fun FriendLbRow(entry: ProfileViewModel.FriendLbEntry, index: Int) {
         0 -> Gold; 1 -> Silver; 2 -> Bronze; else -> TxtDimmer
     }
     val rowBg = if (entry.isCurrentUser)
-        Brush.horizontalGradient(listOf(Green.copy(alpha = 0.1f), Color.Transparent))
+        Brush.horizontalGradient(listOf(Green.copy(alpha = 0.13f), Color.Transparent))
     else
         Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent))
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(11.dp))
             .background(rowBg)
-            .padding(vertical = 6.dp, horizontal = 4.dp),
+            .padding(vertical = 9.dp, horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             "${entry.rank}",
-            fontSize   = 13.sp,
-            fontWeight = FontWeight.Black,
+            fontFamily = RobotoCondensedBold,
+            fontSize   = 14.sp,
+            fontWeight = FontWeight.Bold,
             color      = rankColor,
             modifier   = Modifier.width(18.dp)
         )
-        Spacer(Modifier.width(8.dp))
-        InitialsAvatar(name = entry.displayName, size = 28.dp)
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(11.dp))
+        InitialsAvatar(name = entry.displayName, size = 30.dp)
+        Spacer(Modifier.width(11.dp))
         Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
@@ -541,9 +552,11 @@ private fun FriendLbRow(entry: ProfileViewModel.FriendLbEntry, index: Int) {
         Spacer(Modifier.width(8.dp))
         Text(
             entry.valueStr,
-            fontSize   = 13.sp,
-            fontWeight = FontWeight.Black,
-            color      = TxtPrimary
+            fontFamily = RobotoCondensedBold,
+            fontSize   = 13.5.sp,
+            fontWeight = FontWeight.Bold,
+            color      = Color(0xFFC2C7DF),
+            maxLines   = 1
         )
         Spacer(Modifier.width(6.dp))
         TrendPill(entry.trend)
@@ -697,11 +710,13 @@ private fun GroupRowCardContent(
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         monthlyKm,
+                        fontFamily = RobotoCondensedBold,
                         fontSize   = 18.sp,
-                        fontWeight = FontWeight.Black,
-                        color      = TxtPrimary
+                        fontWeight = FontWeight.Bold,
+                        color      = TxtPrimary,
+                        maxLines   = 1
                     )
-                    Text("km · this month", fontSize = 10.sp, color = TxtDimmer)
+                    Text("km · this month", fontSize = 10.5.sp, color = TxtMuted)
                 }
             }
         }

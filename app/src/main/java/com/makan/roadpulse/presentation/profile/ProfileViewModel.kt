@@ -194,14 +194,20 @@ class ProfileViewModel @Inject constructor(
                 )
             }
         }
-        return raw.sortedByDescending { it.distanceKm }.take(4)
-            .mapIndexed { i, s ->
+        // Dedupe by driver: aggregate each person's total distance so they appear once.
+        return raw.groupBy { it.uid }
+            .map { (_, trips) ->
+                trips.first() to trips.sumOf { it.distanceKm }
+            }
+            .sortedByDescending { it.second }
+            .take(4)
+            .mapIndexed { i, (s, totalKm) ->
                 FriendLbEntry(
                     rank          = i + 1,
                     uid           = s.uid,
                     displayName   = s.displayName,
                     photoUrl      = s.photoUrl,
-                    valueStr      = "%,.0f km".format(s.distanceKm),
+                    valueStr      = "%,.0f km".format(totalKm),
                     isCurrentUser = s.uid == uid,
                     trend         = null
                 )
