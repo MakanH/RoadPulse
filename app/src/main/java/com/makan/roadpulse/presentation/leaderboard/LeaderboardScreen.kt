@@ -428,12 +428,17 @@ private fun PodiumColumn(
             Box(Modifier.fillMaxSize().clip(CircleShape).background(medalColor))
             // Avatar (centered → the ring shows as a thin band around it)
             InitialsAvatar(name = entry.displayName, size = avatarSize.dp)
-            // Rank badge — centered on the avatar's bottom edge
+            // Rank badge — center anchored exactly on the avatar's bottom edge for every
+            // size. The avatar sits 3dp above the container bottom (it's avatarSize inside
+            // an avatarSize+6 box), and align(BottomCenter) puts the badge center at
+            // badgeSize/2 above the bottom, so offsetting by (badgeSize/2 - 3) lands the
+            // badge center on the edge identically for 1st, 2nd and 3rd.
+            val badgeSize = avatarSize * 0.32f
             Box(
                 modifier = Modifier
-                    .size((avatarSize * 0.30f).dp)
+                    .size(badgeSize.dp)
                     .align(Alignment.BottomCenter)
-                    .offset(y = (avatarSize * 0.10f).dp)
+                    .offset(y = (badgeSize / 2f - 3f).dp)
                     .clip(CircleShape)
                     .background(medalColor)
                     .border(2.dp, AppBg, CircleShape),

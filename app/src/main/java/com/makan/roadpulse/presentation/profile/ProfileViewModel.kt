@@ -39,6 +39,11 @@ class ProfileViewModel @Inject constructor(
 
     private val currentUid get() = auth.currentUser?.uid ?: ""
 
+    companion object {
+        /** Experience awarded per kilometre driven. */
+        private const val XP_PER_KM = 10
+    }
+
     // ── Data classes ───────────────────────────────────────────────────────────
 
     data class FriendLbEntry(
@@ -215,7 +220,10 @@ class ProfileViewModel @Inject constructor(
     }
 
     private fun computeXp(stats: LifetimeStats): Triple<Int, Int, Int> {
-        val xp = (stats.totalTrips * 150 + stats.totalDistanceKm.toInt()).coerceAtLeast(0)
+        // XP is earned purely by distance driven: every kilometre is worth XP_PER_KM.
+        // Derived from the logged-in user's real recorded trips (stats.totalDistanceKm),
+        // so the level/tier always reflects how far this account has actually driven.
+        val xp = (stats.totalDistanceKm * XP_PER_KM).toInt().coerceAtLeast(0)
         return when {
             xp < 200  -> Triple(1, xp,       200)
             xp < 500  -> Triple(2, xp - 200, 300)
