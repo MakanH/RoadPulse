@@ -14,3 +14,9 @@
 .cxx
 local.properties
 CLAUDE.md
+
+# Firebase project config: each developer adds their own (see README)
+google-services.json
+
+# Local tool settings
+.claude/settings.local.json
